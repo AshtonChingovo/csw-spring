@@ -20,11 +20,14 @@ public class CardProClient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    private UUID id = null;
     private String name;
     private String surname;
+    private String profession;
     private String registrationNumber;
     private String practiceNumber;
     private String email;
+    private String attachmentFileName;
     private String attachmentPath;
+    private String dateOfExpiry;
 }

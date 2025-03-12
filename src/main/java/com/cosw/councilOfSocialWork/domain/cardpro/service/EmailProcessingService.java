@@ -16,15 +16,20 @@ import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.CloseableThreadContext;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
 import java.io.*;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -33,6 +38,7 @@ public class EmailProcessingService {
     private TrackingSheetRepository trackingSheetRepository;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
+    private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
 
     private static final String APPLICATION_NAME = "CSW Email Service";
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
@@ -64,37 +70,130 @@ public class EmailProcessingService {
                 .setApplicationName(APPLICATION_NAME)
                 .build();
 
-        ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
+        // ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
+        ListMessagesResponse messagesResponse = service.users().messages()
+                .list("me")
+                .setQ("is:unread") // Filter only unread emails
+                .execute();
         List<Message> messages = messagesResponse.getMessages();
 
-        for (Message message : messages) {
+        // Create a thread pool with 3 threads
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+
+        for(Message message : messages) {
+
+            // Message email = service.users().messages().get("me", message.getId()).execute();
             Message email = service.users().messages().get("me", message.getId()).execute();
 
-            if(email.getPayload() != null){
-                var clientEmailAddress = extractClientEmailAddress(email.getPayload());
-                if(!clientEmailAddress.isEmpty()){
-                    var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
-                    if(client.isPresent()){
-                        var attachmentFilePath = extractAttachmentDownloadAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
-                        if(!attachmentFilePath.isEmpty()){
-                            cardProClientList.add(
-                                    CardProClient.builder()
-                                            .email(clientEmailAddress)
-                                            .name(client.get().getName())
-                                            .surname(client.get().getSurname())
-                                            .registrationNumber(client.get().getRegistrationNumber())
-                                            .practiceNumber(client.get().getPracticeNumber())
-                                            .attachmentPath(attachmentFilePath)
-                                            .build()
-                            );
-                        }
+            if(email.getPayload() == null)
+                continue;
+
+            var clientEmailAddress = extractClientEmailAddress(email.getPayload());
+
+            if(clientEmailAddress.isEmpty())
+                continue;
+
+            var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
+
+            if(client.isEmpty())
+                continue;
+
+/*            var attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
+
+            if(!attachmentFilePath.isEmpty()){
+                cardProClientList.add(
+                        CardProClient.builder()
+                                .email(clientEmailAddress)
+                                .name(client.get().getName())
+                                .surname(client.get().getSurname())
+                                .registrationNumber(client.get().getRegistrationNumber())
+                                .practiceNumber(client.get().getPracticeNumber())
+                                .profession("Registered Social Worker")
+                                .dateOfExpiry("31/12/" + LocalDate.now().getYear())
+                                .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                .build());
+            }*/
+
+            executor.execute(() -> {
+                log.info("EmailProcessing <-> Starting");
+
+                String attachmentFilePath;
+
+                try {
+                    attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
+                } catch (IOException e) {
+                    log.info("ERROR {}", e.getMessage());
+                    throw new RuntimeException(e);
+                }
+
+                if(!attachmentFilePath.isEmpty()){
+                    cardProClientConcurrentHashMap.put(clientEmailAddress,
+                            CardProClient.builder()
+                                    .email(clientEmailAddress)
+                                    .name(client.get().getName())
+                                    .surname(client.get().getSurname())
+                                    .registrationNumber(client.get().getRegistrationNumber())
+                                    .practiceNumber(client.get().getPracticeNumber())
+                                    .profession("Registered Social Worker")
+                                    .dateOfExpiry("31/12/" + LocalDate.now().getYear())
+                                    .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                    .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                    .build());
+
+                    // Mark email as read
+                    try {
+                        markEmailAsRead(service, message.getId());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
                 }
-            }
+            });
+
         }
 
-        return cardProClientList;
+        // Prevent new tasks from being submitted
+        executor.shutdown();
 
+        try {
+            // Wait for all threads to finish (up to 10 minutes)
+            if (executor.awaitTermination(10, TimeUnit.MINUTES)) {
+
+                log.info("EmailProcessing <-> DONE");
+
+            } else {
+                return null;
+            }
+        } catch (InterruptedException e) {
+            return null;
+        }
+
+        return new ArrayList<>(cardProClientConcurrentHashMap.values());
+
+    }
+
+    public static void markEmailAsRead(Gmail service, String messageId) throws IOException {
+        // Create a request to remove the "UNREAD" label
+        ModifyMessageRequest modifyRequest = new ModifyMessageRequest()
+                .setRemoveLabelIds(List.of("UNREAD"));
+
+        // Apply the modification
+        service.users().messages().modify("me", messageId, modifyRequest).execute();
+    }
+
+    public String encodeAttachmentFilePath(String filePath){
+        String encodedPath = null;
+        String userHome = System.getProperty("user.home");
+
+        String currentYear = String.valueOf(LocalDate.now().getYear());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+        String dateToday = LocalDate.now().format(formatter);
+
+        String baseUrl = "http://192.168.100.5";
+        String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+
+        encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseUrl + baseFilePath + encodedPath;
     }
 
     public String extractClientEmailAddress(MessagePart messagePart){
@@ -127,7 +226,7 @@ public class EmailProcessingService {
         return email;
     }
 
-    public String extractAttachmentDownloadAndReturnAttachmentPath(MessagePart part, String messageId, Gmail service, TrackingSheetClient client) throws IOException {
+    public String extractThenDownloadAttachmentAndReturnAttachmentPath(MessagePart part, String messageId, Gmail service, TrackingSheetClient client) throws IOException {
         if (part.getParts() != null) {
             for (MessagePart subPart : part.getParts()) {
                 if (subPart.getFilename() != null && !subPart.getFilename().isEmpty()) {
@@ -169,14 +268,14 @@ public class EmailProcessingService {
             byte[] fileData = Base64.getDecoder().decode(base64);
 
             String userHome = System.getProperty("user.home");
-            String filePath = userHome + File.separator + "Downloads" + File.separator + currentYear + File.separator + dateToday + File.separator + filename;
+            String filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
             File file = new File(filePath);
 
             // Ensure directory exists
             file.getParentFile().mkdirs();
 
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(fileData);
+            try (FileOutputStream outputStream = new FileOutputStream(file)) {
+                outputStream.write(fileData);
             }
             catch (Exception e){
                 log.error("Error {}", e.getMessage());
@@ -196,7 +295,7 @@ public class EmailProcessingService {
             StringBuilder fileName = new StringBuilder();
 
             for(String name: usernames){
-                fileName.append(name).append("_");
+                fileName.append(name).append(" ");
             }
 
             fileName.append(client.getSurname()).append(fileExtension);

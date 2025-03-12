@@ -1,6 +1,8 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.repository;
 
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;

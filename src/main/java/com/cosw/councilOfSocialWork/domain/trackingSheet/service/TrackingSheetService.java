@@ -1,11 +1,14 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
+import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface TrackingSheetService {
 
-    String processTrackingSheet(MultipartFile file);
+    boolean processTrackingSheet(MultipartFile file);
 
-    void getTrackingSheet(int pageNumber, int pageSize, String sortBy);
+    Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy);
 
 }
