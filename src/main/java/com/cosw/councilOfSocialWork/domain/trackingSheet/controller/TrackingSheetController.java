@@ -1,7 +1,11 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,13 +20,17 @@ public class TrackingSheetController {
     }
 
     @PostMapping(path = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public String postTrackingSheet(@RequestParam("file") MultipartFile file){
-        return trackingSheetService.processTrackingSheet(file);
+    public ResponseEntity<Object> postTrackingSheet(@RequestParam("file") MultipartFile file){
+        var trackingSheetProcessed = trackingSheetService.processTrackingSheet(file);
+        return ResponseEntity.status(trackingSheetProcessed ? HttpStatus.CREATED : HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 
     @GetMapping
-    public void getTrackingSheet(){
-
+    public ResponseEntity<Page<TrackingSheetClientDto>> getTrackingSheet(
+            @RequestParam(defaultValue = "0") Integer pageNumber,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(defaultValue = "registrationYear") String sortBy){
+        return new ResponseEntity<>(trackingSheetService.getTrackingSheet(pageNumber, pageSize, sortBy), HttpStatus.OK);
     }
 
 }

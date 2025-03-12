@@ -1,12 +1,20 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -22,13 +30,15 @@ import java.util.concurrent.TimeUnit;
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
+    TrackingSheetClientMapper mapper;
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository) {
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
+        this.mapper = mapper;
     }
 
     @Override
-    public String processTrackingSheet(MultipartFile multipartFile) {
+    public boolean processTrackingSheet(MultipartFile multipartFile) {
 
         try {
 
@@ -37,15 +47,13 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             if(inputStream != null)
                 extractAndSaveUsersFromTrackingSheetExcelFile(inputStream);
 
-            return "UPLOADED";
+            return true;
 
         } catch (FileNotFoundException e) {
-
+            return false;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        return "COMPLETED";
 
     }
 
@@ -67,6 +75,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     }
 
+    @Transactional
     public String extractAndSaveUsersFromTrackingSheetExcelFile(FileInputStream file) throws IOException {
 
         // Create a thread pool with 3 threads
@@ -104,6 +113,10 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
         try {
             // Wait for all threads to finish (up to 10 minutes)
             if (executor.awaitTermination(10, TimeUnit.MINUTES)) {
+
+                // delete current tracking sheet data & persist latest data
+                trackingSheetRepository.deleteAll();
+
                 // save client list
                 trackingSheetRepository.saveAll(clientList);
 
@@ -128,6 +141,15 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             var phoneNumber = row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var registrationDate = row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
 
+            if(email.isEmpty())
+                email = "N/A";
+
+            if(registrationNumber.equals("0.0"))
+                registrationNumber = "N/A";
+
+            if(practiceNumber.equals("0.0"))
+                practiceNumber = "N/A";
+
             return TrackingSheetClient.builder()
                     .name(row.getCell(0, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue())
                     .surname(row.getCell(1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue())
@@ -146,8 +168,9 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     }
 
     @Override
-    public void getTrackingSheet(int pageNumber, int pageSize, String sortBy) {
-
+    public Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy) {
+        Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy).descending());
+        return trackingSheetRepository.findAll(page).map(mapper::trackingSheetClientToTrackingSheetClientDto);
     }
 
 }
