@@ -3,6 +3,8 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -17,6 +19,7 @@ import java.util.List;
 public class GenerateThenDownloadCardProfile {
 
     List<CardProClient> cardProClientsList;
+    CellStyle style;
 
     public GenerateThenDownloadCardProfile(List<CardProClient> cardProClientsList) {
         this.cardProClientsList = cardProClientsList;
@@ -26,6 +29,7 @@ public class GenerateThenDownloadCardProfile {
         Workbook workbook = new XSSFWorkbook();
 
         Sheet sheet = workbook.createSheet("Social Workers");
+        style = workbook.createCellStyle();
 
         sheet.setColumnWidth(0, 6000);
         sheet.setColumnWidth(1, 8000);
@@ -41,6 +45,7 @@ public class GenerateThenDownloadCardProfile {
 
         setUpHeaders(sheet);
         createRows(sheet);
+
         // style header row
         sheet.getRow(0).setRowStyle(headerStyle);
 
@@ -79,18 +84,78 @@ public class GenerateThenDownloadCardProfile {
     }
 
     void populateCells(Row row, CardProClient cardProClient){
+        style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
         row.createCell(0).setCellValue(cardProClient.getProfession());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(0).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(0).setCellStyle(style);
+        }
 
         row.createCell(1).setCellValue(cardProClient.getName() + " " + cardProClient.getSurname());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(1).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(1).setCellStyle(style);
+        }
 
         row.createCell(2).setCellValue(cardProClient.getRegistrationNumber());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            row.getCell(2).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(2).setCellStyle(style);
+        }
 
         row.createCell(3).setCellValue(cardProClient.getPracticeNumber());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            row.getCell(3).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(3).setCellStyle(style);
+        }
 
         row.createCell(4).setCellValue(cardProClient.getDateOfExpiry());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(4).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(4).setCellStyle(style);
+        }
 
         row.createCell(5).setCellValue(cardProClient.getAttachmentFileName());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(5).setCellStyle(style);
+        }
+        if(cardProClient.isNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(5).setCellStyle(style);
+        }
 
     }
 

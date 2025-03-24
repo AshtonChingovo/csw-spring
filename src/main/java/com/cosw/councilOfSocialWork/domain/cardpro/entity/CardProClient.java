@@ -30,4 +30,6 @@ public class CardProClient {
     private String attachmentFileName;
     private String attachmentPath;
     private String dateOfExpiry;
+    private boolean hasDifferentEmail;
+    private boolean noAttachment;
 }

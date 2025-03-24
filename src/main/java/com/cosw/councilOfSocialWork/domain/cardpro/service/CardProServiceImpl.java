@@ -1,5 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
+import com.cosw.councilOfSocialWork.config.EmailConfiguration;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
@@ -21,11 +22,13 @@ public class CardProServiceImpl implements CardProService{
 
     private final CardProClientRepository cardProClientRepository;
     private final EmailProcessingService emailProcessingService;
+    private final EmailConfiguration emailConfiguration;
     private final CardProClientMapper mapper;
 
-    public CardProServiceImpl(CardProClientRepository cardProClientRepository, EmailProcessingService emailProcessingService, CardProClientMapper mapper) {
+    public CardProServiceImpl(CardProClientRepository cardProClientRepository, EmailProcessingService emailProcessingService, EmailConfiguration emailConfiguration, CardProClientMapper mapper) {
         this.cardProClientRepository = cardProClientRepository;
         this.emailProcessingService = emailProcessingService;
+        this.emailConfiguration = emailConfiguration;
         this.mapper = mapper;
     }
 
@@ -59,13 +62,8 @@ public class CardProServiceImpl implements CardProService{
     public void generateCardProData() {
 
         try {
-            Properties props = System.getProperties();
-            props.setProperty("mail.store.protocol", "imaps");
 
-            Session session = Session.getDefaultInstance(props, null);
-
-            Store store = session.getStore("imaps");
-            store.connect("imap.googlemail.com", "coswzw@gmail.com", "coswzw2025");
+            Store store = emailConfiguration.createStoreBean();
 
             Folder inbox = store.getFolder("inbox");
 

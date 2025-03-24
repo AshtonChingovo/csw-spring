@@ -18,34 +18,38 @@ import com.google.api.services.gmail.model.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
 import java.io.*;
-import java.lang.Thread;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
-public class EmailProcessingService {
+public class EmailProcessingServiceOld {
 
     private TrackingSheetRepository trackingSheetRepository;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
     private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
 
-    private static final String APPLICATION_NAME = "cosw";
+    private static final String APPLICATION_NAME = "CSW Email Service";
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
+    private static final String CREDENTIALS_FILE_PATH = "/credentials_old.json";  // Downloaded from Google Cloud Console
 
-    public EmailProcessingService(TrackingSheetRepository trackingSheetRepository) {
+    public EmailProcessingServiceOld(TrackingSheetRepository trackingSheetRepository) {
         this.trackingSheetRepository = trackingSheetRepository;
     }
 
@@ -55,7 +59,7 @@ public class EmailProcessingService {
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
                 .build();
 
@@ -70,49 +74,16 @@ public class EmailProcessingService {
                 .build();
 
         // ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
-
-        List<Message> messages = new ArrayList<>();
-
-        String nextPageToken = null;
-
-        // pagination code for gmail
-        do {
-            // Fetch emails with pagination support
-            ListMessagesResponse response = service.users().messages()
-                    .list("me")
-                    .setQ("is:unread") // Filter only unread emails
-                    .setMaxResults(100L) // Maximum: 500 per request
-                    .setPageToken(nextPageToken)
-                    .execute();
-
-            if (response.getMessages() != null) {
-                messages.addAll(response.getMessages());
-            }
-
-            // Move to the next page
-            nextPageToken = response.getNextPageToken();
-
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                log.info("ERROR Threads {}", e.getMessage());
-                throw new RuntimeException(e);
-            }
-
-        } while (nextPageToken != null);
-
+        ListMessagesResponse messagesResponse = service.users().messages()
+                .list("me")
+                .setQ("is:unread") // Filter only unread emails
+                .execute();
+        List<Message> messages = messagesResponse.getMessages();
 
         // Create a thread pool with 3 threads
         ExecutorService executor = Executors.newFixedThreadPool(5);
 
-        var emailCounter = 0;
-        var notInTSCounter = 0;
-        var noAttachment = 0;
-
         for(Message message : messages) {
-
-            var hasDifferentEmail = false;
-            var noAttachmentFound = false;
 
             // Message email = service.users().messages().get("me", message.getId()).execute();
             Message email = service.users().messages().get("me", message.getId()).execute();
@@ -120,101 +91,35 @@ public class EmailProcessingService {
             if(email.getPayload() == null)
                 continue;
 
-            var clientEmailAddress = extractClientEmailAddress(email);
+            var clientEmailAddress = extractClientEmailAddress(email.getPayload());
 
-            if("csw.identificationcards@gmail.com".equals(clientEmailAddress))
-                continue;
+            log.info("Client Email :: {}", clientEmailAddress);
 
             if(clientEmailAddress.isEmpty())
                 continue;
 
             var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
 
-            if(client.isEmpty()){
-                ++notInTSCounter;
-                // log.info("Client Name:: {}", extractClientNameFromAddress(email));
-                // log.info("Client Not In TS:: {} - {}", notInTSCounter, clientEmailAddress);
-                var clientName = extractClientNameFromAddress(email).trim();
-
-                var name = "";
-                var surname = "";
-
-                var lastIndex = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
-
-                if(clientName.lastIndexOf(" ") > -1){
-                    name = extractClientNameFromAddress(email).substring(0, lastIndex).trim();
-                    surname = extractClientNameFromAddress(email).substring(clientName.lastIndexOf(" ")).trim();
-                }
-                else{
-                    name = extractClientNameFromAddress(email).substring(0, lastIndex).trim();
-                    surname = "";
-                }
-
-                // log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
-
-                if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
-                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
-                    hasDifferentEmail = true;
-                }
-                else{
-                    // log.info("Client Not In TS:: {} - {}", clientName, clientEmailAddress);
-                    continue;
-                }
-            }
-
-
-            try {
-                var attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
-
-                if(!attachmentFilePath.isEmpty()){
-                    cardProClientList.add(
-                            CardProClient.builder()
-                                    .email(clientEmailAddress)
-                                    .name(client.get().getName())
-                                    .surname(client.get().getSurname())
-                                    .registrationNumber(client.get().getRegistrationNumber())
-                                    .practiceNumber(client.get().getPracticeNumber())
-                                    .profession("Registered Social Worker")
-                                    .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                    .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
-                                    .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
-                                    .hasDifferentEmail(hasDifferentEmail)
-                                    .noAttachment(false)
-                                    .build());
-
-                    ++emailCounter;
-                    // log.info("Client Email :: {} - {}", emailCounter, clientEmailAddress);
-
-                }
-                else{
-                    ++noAttachment;
-                    if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty())
-                        cardProClientList.add(
-                                CardProClient.builder()
-                                        .email(clientEmailAddress)
-                                        .name(client.get().getName())
-                                        .surname(client.get().getSurname())
-                                        .registrationNumber(client.get().getRegistrationNumber())
-                                        .practiceNumber(client.get().getPracticeNumber())
-                                        .profession("Registered Social Worker")
-                                        .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                        .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
-                                        .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
-                                        .hasDifferentEmail(hasDifferentEmail)
-                                        .noAttachment(true)
-                                        .build());
-
-                    // log.info("Client Email No Attachment:: {} - {}", noAttachment, clientEmailAddress);
-                }
-            } catch (IOException e) {
-                log.info("ERROR Client Email :: {}", clientEmailAddress);
-                ++emailCounter;
+            if(client.isEmpty())
                 continue;
-                // throw new RuntimeException(e);
-            }
 
+/*            var attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
 
-/*
+            if(!attachmentFilePath.isEmpty()){
+                cardProClientList.add(
+                        CardProClient.builder()
+                                .email(clientEmailAddress)
+                                .name(client.get().getName())
+                                .surname(client.get().getSurname())
+                                .registrationNumber(client.get().getRegistrationNumber())
+                                .practiceNumber(client.get().getPracticeNumber())
+                                .profession("Registered Social Worker")
+                                .dateOfExpiry("31/12/" + LocalDate.now().getYear())
+                                .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                .build());
+            }*/
+
             executor.execute(() -> {
                 log.info("EmailProcessing <-> Starting");
 
@@ -224,7 +129,6 @@ public class EmailProcessingService {
                     attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
                 } catch (IOException e) {
                     log.info("ERROR {}", e.getMessage());
-                    log.info("ERROR Client Email :: {}", clientEmailAddress);
                     throw new RuntimeException(e);
                 }
 
@@ -243,24 +147,18 @@ public class EmailProcessingService {
                                     .build());
 
                     // Mark email as read
-*/
-/*                    try {
+                    try {
                         markEmailAsRead(service, message.getId());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
-                    }*//*
-
+                    }
                 }
             });
-*/
 
         }
 
-        log.info("EmailProcessing DONE <> emailCounter :{} notInTSCounter :{} noAttachment:{}", emailCounter, notInTSCounter, noAttachment);
-        return cardProClientList;
-
-      // Prevent new tasks from being submitted
-/*        executor.shutdown();
+        // Prevent new tasks from being submitted
+        executor.shutdown();
 
         try {
             // Wait for all threads to finish (up to 10 minutes)
@@ -272,11 +170,10 @@ public class EmailProcessingService {
                 return null;
             }
         } catch (InterruptedException e) {
-            log.info("ERROR {}", e.getMessage());
             return null;
-        }*/
+        }
 
-        // return new ArrayList<>(cardProClientConcurrentHashMap.values());
+        return new ArrayList<>(cardProClientConcurrentHashMap.values());
 
     }
 
@@ -304,54 +201,18 @@ public class EmailProcessingService {
         return baseUrl + baseFilePath + encodedPath;
     }
 
-    public String extractClientEmailAddress(Message message){
+    public String extractClientEmailAddress(MessagePart part){
 
-/*        var clientEmailAddress = "";
+        var email = "";
 
-        if (messagePart.getParts() != null) {
-            for (MessagePart part : messagePart.getParts()) {
-                if(part.getParts() != null){
-                    clientEmailAddress = extractEmailFromMessagePart(part);
-                }
+        for(MessagePart emailMessagePart: part.getParts()){
+            if(emailMessagePart.getMimeType().equals("text/plain")){
+                var emailBody = new String(Base64.getUrlDecoder().decode(emailMessagePart.getBody().getData()), StandardCharsets.UTF_8);
+                email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
             }
         }
 
-        return !clientEmailAddress.isEmpty() ? clientEmailAddress : "N/A";*/
-
-        // Extract the "From" header
-        for (MessagePartHeader header : message.getPayload().getHeaders()) {
-            if ("From".equalsIgnoreCase(header.getName())) {
-                return header.getValue().substring(header.getValue().indexOf("<") + 1, header.getValue().indexOf(">")); // Returns sender email (e.g., "John Doe <john@example.com>")
-            }
-        }
-
-        return "";
-
-    }
-
-    public String extractClientNameFromAddress(Message message){
-
-        // Extract the "From" header
-        for (MessagePartHeader header : message.getPayload().getHeaders()) {
-            if ("From".equalsIgnoreCase(header.getName())) {
-                return header.getValue().substring(0, header.getValue().indexOf("<")).trim(); // Returns sender email (e.g., "John Doe <john@example.com>")
-            }
-        }
-
-        return "";
-
-    }
-
-    public String extractEmailFromMessagePart(Message message){
-
-        // Extract the "From" header
-        for (MessagePartHeader header : message.getPayload().getHeaders()) {
-            if ("From".equalsIgnoreCase(header.getName())) {
-                return header.getValue(); // Returns sender email (e.g., "John Doe <john@example.com>")
-            }
-        }
-
-        return "";
+        return email;
 
     }
 
@@ -367,7 +228,6 @@ public class EmailProcessingService {
             return downloadAttachmentAndReturnNewFilePath(service, messageId, part, client);
         }
 
-        log.error("ERROR extractThenDownloadAttachmentAndReturnAttachmentPath() :: {}", client.getEmail());
         return "";
 
     }
@@ -415,8 +275,6 @@ public class EmailProcessingService {
             return file.getAbsolutePath();
         }
 
-        log.error("ERROR downloadAttachmentAndReturnNewFilePath() :: {}", client.getEmail());
-
         return "";
     }
 
@@ -436,7 +294,6 @@ public class EmailProcessingService {
 
         } catch (UsernameNotFoundException e) {
             log.error("Client not found");
-            log.error("ERROR createNewAttachmentFileName() :: {}", client.getEmail());
             return "";
         }
     }

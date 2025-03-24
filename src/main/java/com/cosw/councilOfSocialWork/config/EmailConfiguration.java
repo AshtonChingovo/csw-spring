@@ -26,7 +26,6 @@ public class EmailConfiguration {
     @Value("${email.password}")
     private String password;
 
-
     public Store createStoreBean() throws MessagingException {
 
         Properties properties = System.getProperties();
