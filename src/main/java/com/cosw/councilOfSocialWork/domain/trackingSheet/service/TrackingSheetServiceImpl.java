@@ -44,7 +44,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
             var inputStream = convertToFileInputStream(multipartFile);
 
-            if(inputStream != null)
+            if (inputStream != null)
                 extractAndSaveUsersFromTrackingSheetExcelFile(inputStream);
 
             return true;
@@ -57,7 +57,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     }
 
-    public FileInputStream convertToFileInputStream(MultipartFile multipartFile){
+    public FileInputStream convertToFileInputStream(MultipartFile multipartFile) {
         try {
 
             // create temp file in temp location
@@ -98,7 +98,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                         continue;
 
                     var client = convertRowToClient(sheet.getRow(i), sheet.getSheetName());
-                    if(client != null)
+                    if (client != null)
                         clientList.add(client);
 
                 }
@@ -134,20 +134,20 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     public TrackingSheetClient convertRowToClient(Row row, String sheetName) {
 
-        try{
+        try {
             var registrationNumber = row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var practiceNumber = row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var email = row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getRichStringCellValue());
             var phoneNumber = row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var registrationDate = row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
 
-            if(email.isEmpty())
+            if (email.isEmpty())
                 email = "N/A";
 
-            if(registrationNumber.equals("0.0"))
+            if (registrationNumber.equals("0.0"))
                 registrationNumber = "N/A";
 
-            if(practiceNumber.equals("0.0"))
+            if (practiceNumber.equals("0.0"))
                 practiceNumber = "N/A";
 
             return TrackingSheetClient.builder()

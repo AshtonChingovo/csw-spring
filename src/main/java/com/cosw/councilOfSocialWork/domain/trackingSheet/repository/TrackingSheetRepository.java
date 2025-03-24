@@ -1,8 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.repository;
 
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
@@ -14,5 +12,7 @@ import java.util.UUID;
 public interface TrackingSheetRepository extends PagingAndSortingRepository<TrackingSheetClient, UUID>, ListCrudRepository<TrackingSheetClient, UUID> {
 
     Optional<TrackingSheetClient> findFirstByEmailOrderByRegistrationYearDesc(String email);
+
+    Optional<TrackingSheetClient> findFirstByNameAndSurnameOrderByRegistrationYearDesc(String name, String surname);
 
 }
