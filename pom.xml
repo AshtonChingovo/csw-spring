@@ -11,7 +11,7 @@
 	<groupId>com.cosw</groupId>
 	<artifactId>coucil-of-social-work</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>council-of-social-work</name>
+	<name>csw</name>
 	<description>Council Of Social Work CardPro Generation App</description>
 	<url/>
 	<licenses>
