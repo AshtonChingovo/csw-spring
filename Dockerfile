@@ -16,4 +16,4 @@ ENV SPRING_DATASOURCE_USERNAME=root
 ENV SPRING_DATASOURCE_PASSWORD=root
 
 # Run the Spring Boot application
-ENTRYPOINT ["java", "-jar", "spring-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "csw-0.0.1-SNAPSHOT.jar"]
