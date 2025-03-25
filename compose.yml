@@ -2,23 +2,24 @@ version: '2.20.2'
 
 services:
   spring-boot-app:
-    image: openjdk:18
-    container_name: spring-boot-app
+    image: openjdk:17-jdk-slim
+    container_name: csw
     working_dir: /app
     volumes:
-      - ./target/spring-0.0.1-SNAPSHOT.jar:/app/spring-0.0.1-SNAPSHOT.jar
+      - ./target/csw-0.0.1-SNAPSHOT.jar:/app/csw-0.0.1-SNAPSHOT.jar
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/cosw
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/cosw
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=root
     depends_on:
       - db
-    command: [ "java", "-jar", "spring-0.0.1-SNAPSHOT.jar" ]
+    command: [ "java", "-jar", "csw-0.0.1-SNAPSHOT.jar" ]
 
   db:
     image: postgres
+    container_name: db
     restart: always
     ports:
       - 5433:5432
