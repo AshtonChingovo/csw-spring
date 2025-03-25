@@ -1,19 +1,28 @@
-# Use the OpenJDK 17 image as the base image
-FROM openjdk:17-jdk-slim
+# Use official Maven image to build the application
+FROM maven:3.8.8-eclipse-temurin-17 AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Spring Boot JAR file from the host to the container
-COPY ./target/csw-0.0.1-SNAPSHOT.jar /app/csw-0.0.1-SNAPSHOT.jar
+# Copy project files
+COPY . .
 
-# Expose the port that your Spring Boot app will run on
-EXPOSE 8080
+# Build the application (creates the JAR file in /app/target/)
+RUN mvn clean package -DskipTests
 
-# Set environment variables (similar to docker-compose)
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/cosw
+# Use a lightweight JDK runtime image to run the app
+FROM openjdk:17-jdk-slim
+
+WORKDIR /app
+
+# Copy the built JAR from the builder stage
+COPY --from=builder /app/target/csw-0.0.1-SNAPSHOT.jar /app/app.jar
+
+# Set environment variables for database connection
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/cosw
 ENV SPRING_DATASOURCE_USERNAME=root
 ENV SPRING_DATASOURCE_PASSWORD=root
 
-# Run the Spring Boot application
-ENTRYPOINT ["java", "-jar", "csw-0.0.1-SNAPSHOT.jar"]
+EXPOSE 8080
+
+# Run the application
+CMD ["java", "-jar", "/app/app.jar"]
