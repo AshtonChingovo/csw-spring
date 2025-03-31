@@ -142,8 +142,8 @@ public class EmailProcessingServiceOld {
                                     .practiceNumber(client.get().getPracticeNumber())
                                     .profession("Registered Social Worker")
                                     .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                    .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
-                                    .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                    // .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                    // .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
                                     .build());
 
                     // Mark email as read
