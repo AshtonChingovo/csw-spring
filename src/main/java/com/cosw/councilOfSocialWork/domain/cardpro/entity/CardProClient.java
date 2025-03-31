@@ -2,10 +2,7 @@ package com.cosw.councilOfSocialWork.domain.cardpro.entity;
 
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.Set;
 import java.util.UUID;
@@ -15,6 +12,7 @@ import java.util.UUID;
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class CardProClient {
 
     @Id
