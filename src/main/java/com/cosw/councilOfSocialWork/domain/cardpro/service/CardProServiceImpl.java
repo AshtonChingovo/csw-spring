@@ -3,6 +3,7 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 import com.cosw.councilOfSocialWork.config.EmailConfiguration;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
+import com.cosw.councilOfSocialWork.domain.images.service.EmailProcessingService;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
 import jakarta.mail.*;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Properties;
 
 @Service
 @Slf4j

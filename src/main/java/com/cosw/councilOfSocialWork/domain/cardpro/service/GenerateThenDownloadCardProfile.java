@@ -145,7 +145,13 @@ public class GenerateThenDownloadCardProfile {
             row.getCell(4).setCellStyle(style);
         }
 
-        row.createCell(5).setCellValue(cardProClient.getAttachmentFileName());
+        String fileName = "N/A";
+
+        if(!cardProClient.getImages().isEmpty() && cardProClient.getImages().size() > 1){
+            fileName = cardProClient.getImages().iterator().next().getAttachmentFileName();
+        }
+
+        row.createCell(5).setCellValue(fileName);
         if(cardProClient.isHasDifferentEmail()){
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);

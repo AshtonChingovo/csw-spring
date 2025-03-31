@@ -1,14 +1,13 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.cosw.councilOfSocialWork.domain.images.entity.Image;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -27,9 +26,9 @@ public class CardProClient {
     private String registrationNumber;
     private String practiceNumber;
     private String email;
-    private String attachmentFileName;
-    private String attachmentPath;
     private String dateOfExpiry;
     private boolean hasDifferentEmail;
     private boolean noAttachment;
+    @OneToMany(mappedBy = "cardProClient", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Image> images;
 }

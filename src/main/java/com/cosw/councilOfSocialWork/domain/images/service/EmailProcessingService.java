@@ -1,6 +1,7 @@
-package com.cosw.councilOfSocialWork.domain.cardpro.service;
+package com.cosw.councilOfSocialWork.domain.images.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
 import com.google.api.client.auth.oauth2.Credential;
@@ -106,8 +107,8 @@ public class EmailProcessingService {
         ExecutorService executor = Executors.newFixedThreadPool(5);
 
         var emailCounter = 0;
-        var notInTSCounter = 0;
-        var noAttachment = 0;
+        var notInTrackingSheetCounter = 0;
+        var emailsNoAttachmentCounter = 0;
 
         for(Message message : messages) {
 
@@ -122,46 +123,47 @@ public class EmailProcessingService {
 
             var clientEmailAddress = extractClientEmailAddress(email);
 
-            if("csw.identificationcards@gmail.com".equals(clientEmailAddress))
-                continue;
-
             if(clientEmailAddress.isEmpty())
                 continue;
 
+            if("csw.identificationcards@gmail.com".equals(clientEmailAddress))
+                continue;
+
+            // there are multiple records in the tracking sheet with identical email address
             var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
 
             if(client.isEmpty()){
-                ++notInTSCounter;
-                // log.info("Client Name:: {}", extractClientNameFromAddress(email));
-                // log.info("Client Not In TS:: {} - {}", notInTSCounter, clientEmailAddress);
+
+                ++notInTrackingSheetCounter;
+
                 var clientName = extractClientNameFromAddress(email).trim();
 
                 var name = "";
                 var surname = "";
 
-                var lastIndex = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
+                var lastIndexOfSpaceChar = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
 
                 if(clientName.lastIndexOf(" ") > -1){
-                    name = extractClientNameFromAddress(email).substring(0, lastIndex).trim();
+                    name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
                     surname = extractClientNameFromAddress(email).substring(clientName.lastIndexOf(" ")).trim();
                 }
+                // client does not have a surname
                 else{
-                    name = extractClientNameFromAddress(email).substring(0, lastIndex).trim();
+                    name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
                     surname = "";
                 }
 
                 // log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
 
+                // find if a client exits with extracted name & surname since email is not on Tracking Sheet
                 if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
                     client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
                     hasDifferentEmail = true;
                 }
                 else{
-                    // log.info("Client Not In TS:: {} - {}", clientName, clientEmailAddress);
                     continue;
                 }
             }
-
 
             try {
                 var attachmentFilePath = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
@@ -176,8 +178,8 @@ public class EmailProcessingService {
                                     .practiceNumber(client.get().getPracticeNumber())
                                     .profession("Registered Social Worker")
                                     .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                    .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
-                                    .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                    // .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                    // .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
                                     .hasDifferentEmail(hasDifferentEmail)
                                     .noAttachment(false)
                                     .build());
@@ -187,7 +189,7 @@ public class EmailProcessingService {
 
                 }
                 else{
-                    ++noAttachment;
+                    ++emailsNoAttachmentCounter;
                     if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty())
                         cardProClientList.add(
                                 CardProClient.builder()
@@ -198,13 +200,13 @@ public class EmailProcessingService {
                                         .practiceNumber(client.get().getPracticeNumber())
                                         .profession("Registered Social Worker")
                                         .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                        .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
-                                        .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
+                                        //.attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
+                                        //.attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
                                         .hasDifferentEmail(hasDifferentEmail)
                                         .noAttachment(true)
                                         .build());
 
-                    // log.info("Client Email No Attachment:: {} - {}", noAttachment, clientEmailAddress);
+                    // log.info("Client Email No Attachment:: {} - {}", emailsNoAttachmentCounter, clientEmailAddress);
                 }
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {}", clientEmailAddress);
@@ -256,7 +258,7 @@ public class EmailProcessingService {
 
         }
 
-        log.info("EmailProcessing DONE <> emailCounter :{} notInTSCounter :{} noAttachment:{}", emailCounter, notInTSCounter, noAttachment);
+        log.info("EmailProcessing DONE <> emailCounter :{} notInTrackingSheetCounter :{} emailsNoAttachmentCounter:{}", emailCounter, notInTrackingSheetCounter, emailsNoAttachmentCounter);
         return cardProClientList;
 
       // Prevent new tasks from being submitted
