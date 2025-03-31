@@ -12,5 +12,6 @@ public interface CardProClientMapper {
 
     CardProSheetClientDto cardProClientToCardProSheetClientDto(CardProClient cardProClient);
 
+
 }
 

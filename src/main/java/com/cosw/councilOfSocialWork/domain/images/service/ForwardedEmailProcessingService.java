@@ -1,6 +1,7 @@
 package com.cosw.councilOfSocialWork.domain.images.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
@@ -17,6 +18,7 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.*;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class ForwardedEmailProcessingService {
 
+    private final CardProClientRepository cardProClientRepository;
     private TrackingSheetRepository trackingSheetRepository;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
@@ -46,7 +49,8 @@ public class ForwardedEmailProcessingService {
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
 
-    public ForwardedEmailProcessingService(TrackingSheetRepository trackingSheetRepository) {
+    public ForwardedEmailProcessingService(CardProClientRepository cardProClientRepository, TrackingSheetRepository trackingSheetRepository) {
+        this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
     }
 
@@ -63,6 +67,7 @@ public class ForwardedEmailProcessingService {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
     }
 
+    @Transactional
     public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -167,41 +172,37 @@ public class ForwardedEmailProcessingService {
             try {
                 var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
 
+                var clientObj = CardProClient.builder()
+                        .email(clientEmailAddress)
+                        .name(client.get().getName())
+                        .surname(client.get().getSurname())
+                        .registrationNumber(client.get().getRegistrationNumber())
+                        .practiceNumber(client.get().getPracticeNumber())
+                        .profession("Registered Social Worker")
+                        .dateOfExpiry("31/12/" + LocalDate.now().getYear())
+                        .hasDifferentEmail(hasDifferentEmail)
+                        .build();
+
+                attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
+
                 if(!attachmentsSet.isEmpty()){
-                    cardProClientList.add(
-                            CardProClient.builder()
-                                    .email(clientEmailAddress)
-                                    .name(client.get().getName())
-                                    .surname(client.get().getSurname())
-                                    .registrationNumber(client.get().getRegistrationNumber())
-                                    .practiceNumber(client.get().getPracticeNumber())
-                                    .profession("Registered Social Worker")
-                                    .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                    .hasDifferentEmail(hasDifferentEmail)
-                                    .noAttachment(false)
-                                    .images(attachmentsSet)
-                                    .build());
 
+                    clientObj.setImages(attachmentsSet);
+                    clientObj.setNoAttachment(false);
+
+                    cardProClientList.add(clientObj);
                     ++emailCounter;
-
                 }
                 else{
                     ++emailsNoAttachmentCounter;
-                    if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty())
-                        cardProClientList.add(
-                                CardProClient.builder()
-                                        .email(clientEmailAddress)
-                                        .name(client.get().getName())
-                                        .surname(client.get().getSurname())
-                                        .registrationNumber(client.get().getRegistrationNumber())
-                                        .practiceNumber(client.get().getPracticeNumber())
-                                        .profession("Registered Social Worker")
-                                        .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                                        .hasDifferentEmail(hasDifferentEmail)
-                                        .noAttachment(true)
-                                        .build());
-
+                    if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty()){
+                        clientObj.setNoAttachment(true);
+                        ++emailCounter;
+                    }
                 }
+
+                log.info("L2");
+
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {}", clientEmailAddress);
                 ++emailCounter;
@@ -209,8 +210,7 @@ public class ForwardedEmailProcessingService {
             }
         }
 
-/*        log.info("EmailProcessing DONE <> emailCounter :{} notInTrackingSheetCounter :{} emailsNoAttachmentCounter:{}", emailCounter, notInTrackingSheetCounter, emailsNoAttachmentCounter);
-        log.info("Client list size :{} ", cardProClientList.size());*/
+        cardProClientRepository.saveAll(cardProClientList);
         return true;
 
     }
@@ -339,8 +339,6 @@ public class ForwardedEmailProcessingService {
         String fileExtension = part.getFilename().substring(part.getFilename().lastIndexOf("."));
         String filename = createNewAttachmentFileName(client, partId, fileExtension);
         String attachmentId = part.getBody().getAttachmentId();
-
-        log.info("Part {} - {}", fileExtension, part);
 
         if (attachmentId != null && !filename.isEmpty()) {
 

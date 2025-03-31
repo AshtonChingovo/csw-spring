@@ -1,6 +1,7 @@
 package com.cosw.councilOfSocialWork.domain.images.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
@@ -16,6 +17,7 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.*;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class EmailProcessingService {
 
+    private final CardProClientRepository cardProClientRepository;
     private TrackingSheetRepository trackingSheetRepository;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
@@ -46,7 +49,8 @@ public class EmailProcessingService {
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
 
-    public EmailProcessingService(TrackingSheetRepository trackingSheetRepository) {
+    public EmailProcessingService(CardProClientRepository cardProClientRepository, TrackingSheetRepository trackingSheetRepository) {
+        this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
     }
 
@@ -63,6 +67,7 @@ public class EmailProcessingService {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
     }
 
+    @Transactional
     public List<CardProClient> createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -211,10 +216,8 @@ public class EmailProcessingService {
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {}", clientEmailAddress);
                 ++emailCounter;
-                continue;
                 // throw new RuntimeException(e);
             }
-
 
 /*
             executor.execute(() -> {
@@ -251,14 +254,16 @@ public class EmailProcessingService {
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }*//*
-
                 }
             });
 */
-
         }
 
         log.info("EmailProcessing DONE <> emailCounter :{} notInTrackingSheetCounter :{} emailsNoAttachmentCounter:{}", emailCounter, notInTrackingSheetCounter, emailsNoAttachmentCounter);
+        log.info("Clients size: {}", cardProClientList.size());
+
+        cardProClientRepository.saveAll(cardProClientList);
+
         return cardProClientList;
 
       // Prevent new tasks from being submitted
