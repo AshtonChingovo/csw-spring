@@ -186,7 +186,7 @@ public class EmailProcessingService {
                                     // .attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
                                     // .attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
                                     .hasDifferentEmail(hasDifferentEmail)
-                                    .noAttachment(false)
+                                    .hasNoAttachment(false)
                                     .build());
 
                     ++emailCounter;
@@ -208,7 +208,7 @@ public class EmailProcessingService {
                                         //.attachmentFileName(attachmentFilePath.substring(attachmentFilePath.lastIndexOf(File.separator) + 1))
                                         //.attachmentPath(encodeAttachmentFilePath(attachmentFilePath))
                                         .hasDifferentEmail(hasDifferentEmail)
-                                        .noAttachment(true)
+                                        .hasNoAttachment(true)
                                         .build());
 
                     // log.info("Client Email No Attachment:: {} - {}", emailsNoAttachmentCounter, clientEmailAddress);

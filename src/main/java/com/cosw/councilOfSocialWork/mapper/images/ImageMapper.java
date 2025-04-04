@@ -4,13 +4,15 @@ import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.mapper.config.IgnoreUnmappedPropertiesConfig;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Mapper(componentModel = "spring", config = IgnoreUnmappedPropertiesConfig.class)
 public interface ImageMapper {
 
-    ImageDto cardProClientToCardProSheetClientDto(Image image);
+    @Mapping(target = "cardProClientId", source = "image.cardProClient.id")
+    ImageDto imageToImageDto(Image image);
 
 }
 
