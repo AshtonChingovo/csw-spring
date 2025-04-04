@@ -14,5 +14,4 @@ public class CSWApplication {
 		// log.info("Spring version {}", SpringVersion.getVersion());
 
 	}
-
 }

@@ -14,4 +14,13 @@ public interface CardProClientRepository extends PagingAndSortingRepository<Card
     @Query("DELETE FROM CardProClient")
     void deleteAllEntries();
 
+    @Query("SELECT COUNT(c) FROM CardProClient c WHERE c.hasDifferentEmail = false AND c.hasNoAttachment = false AND SIZE(c.images) = 1")
+    int countTotalReady();
+
+    @Query("SELECT COUNT(c) FROM CardProClient c WHERE c.hasDifferentEmail = true")
+    int countByHasDifferentEmail();
+
+    @Query("SELECT COUNT(c) FROM CardProClient c WHERE c.hasNoAttachment = true")
+    int countByHasNoAttachment();
+
 }

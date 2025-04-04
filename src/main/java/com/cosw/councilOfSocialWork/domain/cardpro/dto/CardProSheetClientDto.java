@@ -9,6 +9,9 @@ public record CardProSheetClientDto(
         String surname,
         String registrationNumber,
         String practiceNumber,
+        String email,
         String dateOfExpiry,
+        boolean hasDifferentEmail,
+        boolean hasNoAttachment,
         Set<ImageDto> images
 ){}

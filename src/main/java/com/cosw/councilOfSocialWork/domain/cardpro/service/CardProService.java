@@ -1,19 +1,15 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
 import org.springframework.data.domain.Page;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 public interface CardProService {
 
-    void generateCardProData();
+    Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy);
 
-    boolean createCardProData() throws IOException, GeneralSecurityException;
+    boolean generateCardProData();
 
-    Page<CardProSheetClientDto> getCardProSheet(int pageNumber, int pageSize, String sortBy);
-
-    void generateThenDownloadCardProFile();
+    CardProStatsDto getCardProStats();
 
 }

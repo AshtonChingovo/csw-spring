@@ -3,9 +3,12 @@ package com.cosw.councilOfSocialWork.domain.images.service;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
+import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
+import com.cosw.councilOfSocialWork.domain.images.repository.ImagesRepository;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.mapper.images.ImageMapper;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -18,8 +21,13 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.*;
-import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -37,8 +45,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class ForwardedEmailProcessingService {
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    private final ImagesRepository imagesRepository;
     private final CardProClientRepository cardProClientRepository;
     private TrackingSheetRepository trackingSheetRepository;
+
+    private ImageMapper mapper;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
     private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
@@ -49,9 +63,11 @@ public class ForwardedEmailProcessingService {
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
 
-    public ForwardedEmailProcessingService(CardProClientRepository cardProClientRepository, TrackingSheetRepository trackingSheetRepository) {
+    public ForwardedEmailProcessingService(ImagesRepository imagesRepository, CardProClientRepository cardProClientRepository, TrackingSheetRepository trackingSheetRepository, ImageMapper mapper) {
+        this.imagesRepository = imagesRepository;
         this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
+        this.mapper = mapper;
     }
 
     public static Credential getEmailServerCredentials(final HttpTransport HTTP_TRANSPORT) throws IOException {
@@ -67,8 +83,11 @@ public class ForwardedEmailProcessingService {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
     }
 
-    @Transactional
     public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
+
+        //clear current data
+        // cardProClientRepository.deleteAll();
+
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
         Gmail service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, getEmailServerCredentials(HTTP_TRANSPORT))
@@ -107,6 +126,8 @@ public class ForwardedEmailProcessingService {
 
         } while (nextPageToken != null);
 
+        log.info("Total Messages: {}", messages.size());
+
         // Create a thread pool with 3 threads
         // ExecutorService executor = Executors.newFixedThreadPool(5);
 
@@ -121,9 +142,9 @@ public class ForwardedEmailProcessingService {
 
             Message email = service.users().messages().get("me", message.getId()).execute();
 
-            if(email.getPayload() == null)
+            if(email.getPayload() == null){
                 continue;
-
+            }
             var clientEmailAddress = extractClientEmailAddress(email);
 
             if(clientEmailAddress.isEmpty())
@@ -157,7 +178,7 @@ public class ForwardedEmailProcessingService {
                     surname = "";
                 }
 
-                log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
+                // log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
 
                 // find if a client exits with extracted name & surname since email is not on Tracking Sheet
                 if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
@@ -165,6 +186,7 @@ public class ForwardedEmailProcessingService {
                     hasDifferentEmail = true;
                 }
                 else{
+                    ++notInTrackingSheetCounter;
                     continue;
                 }
             }
@@ -188,20 +210,16 @@ public class ForwardedEmailProcessingService {
                 if(!attachmentsSet.isEmpty()){
 
                     clientObj.setImages(attachmentsSet);
-                    clientObj.setNoAttachment(false);
+                    clientObj.setHasNoAttachment(false);
 
                     cardProClientList.add(clientObj);
-                    ++emailCounter;
                 }
                 else{
                     ++emailsNoAttachmentCounter;
                     if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty()){
-                        clientObj.setNoAttachment(true);
-                        ++emailCounter;
+                        clientObj.setHasNoAttachment(true);
                     }
                 }
-
-                log.info("L2");
 
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {}", clientEmailAddress);
@@ -210,7 +228,14 @@ public class ForwardedEmailProcessingService {
             }
         }
 
+        log.info("Done");
+
+        log.info("Total Messages: {}", messages.size());
+        log.info("Total Not in TS: {}", notInTrackingSheetCounter);
+
+
         cardProClientRepository.saveAll(cardProClientList);
+
         return true;
 
     }
@@ -232,8 +257,10 @@ public class ForwardedEmailProcessingService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         String dateToday = LocalDate.now().format(formatter);
 
-        String baseUrl = "http://192.168.100.5";
-        String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        // String baseUrl = "http://192.168.100.5";
+        String baseUrl = "http://68.183.91.109:8080";
+        // String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
 
         encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
         return baseUrl + baseFilePath + encodedPath;
@@ -280,7 +307,7 @@ public class ForwardedEmailProcessingService {
             }
         }
 
-        log.info("Client Name {}", clientName);
+        // log.info("Client Name {}", clientName);
 
         return "";
 
@@ -360,7 +387,7 @@ public class ForwardedEmailProcessingService {
             byte[] fileData = Base64.getDecoder().decode(base64);
 
             String userHome = System.getProperty("user.home");
-            String filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
+            String filePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
             File file = new File(filePath);
 
             // Ensure directory exists
@@ -399,7 +426,7 @@ public class ForwardedEmailProcessingService {
                 fileName.append("_").append(Integer.valueOf(partId));
             }
 
-            fileName.append(fileExtension);
+            // fileName.append(fileExtension);
 
             return fileName.toString();
 
@@ -410,4 +437,17 @@ public class ForwardedEmailProcessingService {
         }
     }
 
+    public Page<ImageDto> getImages(int pageNumber, int pageSize, String sortBy){
+        Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
+        return imagesRepository.findAll(page).map(mapper::imageToImageDto);
+    }
+
+    public ImageDto softDeleteImage(Long id){
+        var image = imagesRepository.findById(id).orElseThrow(RuntimeException::new);
+
+        image.setDeleted(true);
+        image = imagesRepository.save(image);
+
+        return mapper.imageToImageDto(image);
+    }
 }

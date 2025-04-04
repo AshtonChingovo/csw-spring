@@ -2,6 +2,7 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.config.EmailConfiguration;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.images.service.EmailProcessingService;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
@@ -25,7 +26,11 @@ public class CardProServiceImpl implements CardProService{
     private final EmailConfiguration emailConfiguration;
     private final CardProClientMapper mapper;
 
-    public CardProServiceImpl(CardProClientRepository cardProClientRepository, EmailProcessingService emailProcessingService, EmailConfiguration emailConfiguration, CardProClientMapper mapper) {
+    public CardProServiceImpl(
+            CardProClientRepository cardProClientRepository,
+            EmailProcessingService emailProcessingService,
+            EmailConfiguration emailConfiguration,
+            CardProClientMapper mapper) {
         this.cardProClientRepository = cardProClientRepository;
         this.emailProcessingService = emailProcessingService;
         this.emailConfiguration = emailConfiguration;
@@ -33,45 +38,30 @@ public class CardProServiceImpl implements CardProService{
     }
 
     @Override
-    public boolean createCardProData() throws IOException, GeneralSecurityException {
-        // delete all current data & save new generated data
-        // cardProClientRepository.deleteAll();
-
-        var cardProClientList = emailProcessingService.createClientListAndDownloadImages();
-
-        if(!cardProClientList.isEmpty()){
-            cardProClientRepository.saveAll(cardProClientList);
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public Page<CardProSheetClientDto> getCardProSheet(int pageNumber, int pageSize, String sortBy) {
+    public Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy) {
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
         return cardProClientRepository.findAll(page).map(mapper::cardProClientToCardProSheetClientDto);
     }
 
     @Override
-    public void generateThenDownloadCardProFile() {
-        new GenerateThenDownloadCardProfile(cardProClientRepository.findAll()).createFile();
+    public boolean generateCardProData() {
+        return new GenerateThenDownloadCardProSheet(cardProClientRepository.findAll()).createFile();
     }
 
     @Override
-    public void generateCardProData() {
+    public CardProStatsDto getCardProStats() {
 
-        try {
+        long totalClients = cardProClientRepository.count();
+        int totalReady = cardProClientRepository.countTotalReady();
+        int totalHasDifferentEmail = cardProClientRepository.countByHasDifferentEmail();
+        int totalNoAttachmentFound = cardProClientRepository.countByHasNoAttachment();
 
-            Store store = emailConfiguration.createStoreBean();
-
-            Folder inbox = store.getFolder("inbox");
-
-            log.info("Inbox size {}", inbox.getMessageCount());
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
-        }
-
+        return new CardProStatsDto(
+                totalClients,
+                totalReady,
+                totalHasDifferentEmail,
+                totalNoAttachmentFound
+        );
     }
 
 }

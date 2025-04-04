@@ -26,7 +26,7 @@ public class CardProClient {
     private String email;
     private String dateOfExpiry;
     private boolean hasDifferentEmail;
-    private boolean noAttachment;
+    private boolean hasNoAttachment;
     @OneToMany(mappedBy = "cardProClient", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Image> images;
 }

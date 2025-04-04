@@ -3,10 +3,9 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,12 +15,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
-public class GenerateThenDownloadCardProfile {
+public class GenerateThenDownloadCardProSheet {
 
     List<CardProClient> cardProClientsList;
     CellStyle style;
 
-    public GenerateThenDownloadCardProfile(List<CardProClient> cardProClientsList) {
+    public GenerateThenDownloadCardProSheet(List<CardProClient> cardProClientsList) {
         this.cardProClientsList = cardProClientsList;
     }
 
@@ -93,7 +92,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(0).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(0).setCellStyle(style);
@@ -105,7 +104,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(1).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(1).setCellStyle(style);
@@ -116,7 +115,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
             row.getCell(2).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(2).setCellStyle(style);
@@ -127,7 +126,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
             row.getCell(3).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(3).setCellStyle(style);
@@ -139,7 +138,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(4).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(4).setCellStyle(style);
@@ -157,7 +156,7 @@ public class GenerateThenDownloadCardProfile {
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(5).setCellStyle(style);
         }
-        if(cardProClient.isNoAttachment()){
+        if(cardProClient.isHasNoAttachment()){
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(5).setCellStyle(style);
