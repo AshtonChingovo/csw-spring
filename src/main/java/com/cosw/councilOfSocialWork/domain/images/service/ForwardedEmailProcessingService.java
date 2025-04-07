@@ -3,6 +3,7 @@ package com.cosw.councilOfSocialWork.domain.images.service;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
+import com.cosw.councilOfSocialWork.domain.images.dto.ImageDeleteDto;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.domain.images.repository.ImagesRepository;
@@ -126,7 +127,7 @@ public class ForwardedEmailProcessingService {
 
         } while (nextPageToken != null);
 
-        log.info("Total Messages: {}", messages.size());
+        log.info("Starting, Total Messages: {}", messages.size());
 
         // Create a thread pool with 3 threads
         // ExecutorService executor = Executors.newFixedThreadPool(5);
@@ -134,6 +135,9 @@ public class ForwardedEmailProcessingService {
         var emailCounter = 0;
         var notInTrackingSheetCounter = 0;
         var emailsNoAttachmentCounter = 0;
+        var emptyEmail = 0;
+        var emptyPayload = 0;
+        var fromCSW = 0;
 
         for(Message message : messages) {
 
@@ -143,15 +147,20 @@ public class ForwardedEmailProcessingService {
             Message email = service.users().messages().get("me", message.getId()).execute();
 
             if(email.getPayload() == null){
+                ++emptyPayload;
                 continue;
             }
             var clientEmailAddress = extractClientEmailAddress(email);
 
-            if(clientEmailAddress.isEmpty())
+            if(clientEmailAddress.isEmpty()){
+                ++emptyEmail;
                 continue;
+            }
 
-            if("csw.identificationcards@gmail.com".equals(clientEmailAddress))
+            if("csw.identificationcards@gmail.com".equals(clientEmailAddress)){
+                ++fromCSW;
                 continue;
+            }
 
             // there are multiple records in the tracking sheet with identical email address
             var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
@@ -209,6 +218,8 @@ public class ForwardedEmailProcessingService {
 
                 if(!attachmentsSet.isEmpty()){
 
+                    ++emailCounter;
+
                     clientObj.setImages(attachmentsSet);
                     clientObj.setHasNoAttachment(false);
 
@@ -216,6 +227,8 @@ public class ForwardedEmailProcessingService {
                 }
                 else{
                     ++emailsNoAttachmentCounter;
+                    ++emailCounter;
+
                     if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty()){
                         clientObj.setHasNoAttachment(true);
                     }
@@ -230,9 +243,13 @@ public class ForwardedEmailProcessingService {
 
         log.info("Done");
 
-        log.info("Total Messages: {}", messages.size());
+/*        log.info("Total Messages: {}", messages.size());
+        log.info("Total +ve email processed: {}", emailCounter);
+        log.info("Total cardPro records: {}", cardProClientList.size());
         log.info("Total Not in TS: {}", notInTrackingSheetCounter);
-
+        log.info("Total No Attachment: {}", emailsNoAttachmentCounter);
+        log.info("Total empty payload: {}", emptyPayload);
+        log.info("Total empty email: {}", emptyEmail);*/
 
         cardProClientRepository.saveAll(cardProClientList);
 
@@ -340,6 +357,7 @@ public class ForwardedEmailProcessingService {
                             Image.builder()
                                     .attachmentPath(encodeAttachmentFilePath(filePath))
                                     .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
+                                    .deleted(false)
                                     .build()
                     );
                 }
@@ -352,6 +370,7 @@ public class ForwardedEmailProcessingService {
                     Image.builder()
                             .attachmentPath(encodeAttachmentFilePath(filePath))
                             .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
+                            .deleted(false)
                             .build()
             );
         }
@@ -442,12 +461,40 @@ public class ForwardedEmailProcessingService {
         return imagesRepository.findAll(page).map(mapper::imageToImageDto);
     }
 
-    public ImageDto softDeleteImage(Long id){
-        var image = imagesRepository.findById(id).orElseThrow(RuntimeException::new);
+    public ImageDto softDeleteImage(ImageDeleteDto imageDeleteDto){
 
-        image.setDeleted(true);
+        var clientImagesSize = imagesRepository.countByCardProClient_IdAndDeletedFalse(imageDeleteDto.clientId());
+
+        if(clientImagesSize > 1){
+
+            var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(RuntimeException::new);
+
+            // check if there are multiple images on the use
+
+            // delete
+
+            image.setDeleted(true);
+            image = imagesRepository.save(image);
+
+            return mapper.imageToImageDto(image);
+
+        }
+        else{
+            throw new RuntimeException();
+        }
+
+    }
+
+    public ImageDto undoDeleteImage(ImageDeleteDto imageDeleteDto){
+
+        var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(RuntimeException::new);
+
+        image.setDeleted(false);
+
         image = imagesRepository.save(image);
 
         return mapper.imageToImageDto(image);
+
     }
+
 }

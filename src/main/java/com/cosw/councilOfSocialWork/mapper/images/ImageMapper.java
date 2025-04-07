@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Mapper(componentModel = "spring", config = IgnoreUnmappedPropertiesConfig.class)
 public interface ImageMapper {
 
-    @Mapping(target = "cardProClientId", source = "image.cardProClient.id")
+    @Mapping(target = "cardProClientId", source = "cardProClient.id")
     ImageDto imageToImageDto(Image image);
 
 }

@@ -43,7 +43,12 @@ public class ImagesController {
 
     @PostMapping("/remove")
     public ResponseEntity<ImageDto> delete(@RequestBody ImageDeleteDto imageDeleteDto){
-        return new ResponseEntity<>(emailProcessingService.softDeleteImage(imageDeleteDto.id()), HttpStatus.OK);
+        return new ResponseEntity<>(emailProcessingService.softDeleteImage(imageDeleteDto), HttpStatus.OK);
+    }
+
+    @PostMapping("/remove/undo")
+    public ResponseEntity<ImageDto> undoDelete(@RequestBody ImageDeleteDto imageDeleteDto){
+        return new ResponseEntity<>(emailProcessingService.undoDeleteImage(imageDeleteDto), HttpStatus.OK);
     }
 
 }
