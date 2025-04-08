@@ -40,7 +40,7 @@ public class CardProServiceImpl implements CardProService{
     @Override
     public Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy) {
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
-        return cardProClientRepository.findAll(page).map(mapper::cardProClientToCardProSheetClientDto);
+        return cardProClientRepository.findAllSorted(page).map(mapper::cardProClientToCardProSheetClientDto);
     }
 
     @Override
