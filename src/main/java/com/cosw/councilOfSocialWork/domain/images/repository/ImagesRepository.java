@@ -12,7 +12,7 @@ import java.util.UUID;
 @Repository
 public interface ImagesRepository extends PagingAndSortingRepository<Image, Long>, JpaRepository<Image, Long> {
 
-    @Query("SELECT COUNT(i) FROM Image i WHERE i.cardProClient.id = :cardProClientId AND i.deleted = false")
+    @Query("SELECT COUNT(i) FROM Image i WHERE i.cardProClient.id = :cardProClientId AND (i.deleted = false OR i.deleted IS NULL)")
     long countByCardProClient_IdAndDeletedFalse(@Param("cardProClientId") UUID cardProClientId);
 
 }

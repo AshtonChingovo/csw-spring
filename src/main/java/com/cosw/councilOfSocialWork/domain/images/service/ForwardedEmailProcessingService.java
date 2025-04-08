@@ -9,6 +9,8 @@ import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.domain.images.repository.ImagesRepository;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.exception.PictureCannotBeDeletedException;
+import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.images.ImageMapper;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -357,7 +359,6 @@ public class ForwardedEmailProcessingService {
                             Image.builder()
                                     .attachmentPath(encodeAttachmentFilePath(filePath))
                                     .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
-                                    .deleted(false)
                                     .build()
                     );
                 }
@@ -370,7 +371,6 @@ public class ForwardedEmailProcessingService {
                     Image.builder()
                             .attachmentPath(encodeAttachmentFilePath(filePath))
                             .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
-                            .deleted(false)
                             .build()
             );
         }
@@ -465,13 +465,11 @@ public class ForwardedEmailProcessingService {
 
         var clientImagesSize = imagesRepository.countByCardProClient_IdAndDeletedFalse(imageDeleteDto.clientId());
 
+        log.info("Pre-processing: image size {}", clientImagesSize);
+
         if(clientImagesSize > 1){
 
-            var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(RuntimeException::new);
-
-            // check if there are multiple images on the use
-
-            // delete
+            var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(() -> new ResourceNotFoundException("Picture not found"));
 
             image.setDeleted(true);
             image = imagesRepository.save(image);
@@ -480,14 +478,17 @@ public class ForwardedEmailProcessingService {
 
         }
         else{
-            throw new RuntimeException();
+
+            log.error("Error: image size {} {}", clientImagesSize, imageDeleteDto.clientId());
+
+            throw new PictureCannotBeDeletedException("Cannot delete, Client only has one picture");
         }
 
     }
 
     public ImageDto undoDeleteImage(ImageDeleteDto imageDeleteDto){
 
-        var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(RuntimeException::new);
+        var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(() -> new ResourceNotFoundException("Picture not found"));
 
         image.setDeleted(false);
 
