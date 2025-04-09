@@ -25,10 +25,11 @@ public class CardProClient {
     private String practiceNumber;
     private String email;
     private String dateOfExpiry;
+    private boolean notInTrackingSheet;
     private boolean hasDifferentEmail;
     private boolean hasNoAttachment;
     private String messageId;
-    private long transactionId;
+    private UUID transactionId;
     @OneToMany(mappedBy = "cardProClient", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Image> images;
 }

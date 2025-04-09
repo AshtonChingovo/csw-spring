@@ -13,12 +13,16 @@ import java.util.UUID;
 @NoArgsConstructor
 public class ProcessedCardProClientsStats extends BaseModel {
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID transactionId;
-    private String messageId;
-    private Integer emailCounter;
-    private Integer notInTrackingSheetCounter;
-    private Integer emailsNoAttachmentCounter;
-    private Integer emptyEmail;
-    private Integer emptyPayload;
+    private Integer totalEmails;
+    private Integer processedEmails;
+    private Integer notInTrackingSheet;
+    private Integer emailsNoAttachment;
+    private Integer hasDifferentEmail;
+    private Integer emptyEmails;
+    private Integer emptyPayloadEmails;
     private Integer fromCSWEmailAddress;
+    // pictures details
+    private Integer totalEmailsWithMultipleImages;
 }

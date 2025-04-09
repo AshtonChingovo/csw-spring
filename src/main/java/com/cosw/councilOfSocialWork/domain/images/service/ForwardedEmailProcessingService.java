@@ -1,7 +1,9 @@
 package com.cosw.councilOfSocialWork.domain.images.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
+import com.cosw.councilOfSocialWork.domain.cardpro.repository.ProcessedCardProClientsStatsRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDeleteDto;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
@@ -43,6 +45,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -54,6 +57,7 @@ public class ForwardedEmailProcessingService {
     private final ImagesRepository imagesRepository;
     private final CardProClientRepository cardProClientRepository;
     private TrackingSheetRepository trackingSheetRepository;
+    private ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository;
 
     private ImageMapper mapper;
 
@@ -66,10 +70,16 @@ public class ForwardedEmailProcessingService {
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
 
-    public ForwardedEmailProcessingService(ImagesRepository imagesRepository, CardProClientRepository cardProClientRepository, TrackingSheetRepository trackingSheetRepository, ImageMapper mapper) {
+    public ForwardedEmailProcessingService(
+            ImagesRepository imagesRepository,
+            CardProClientRepository cardProClientRepository,
+            TrackingSheetRepository trackingSheetRepository,
+            ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository,
+            ImageMapper mapper) {
         this.imagesRepository = imagesRepository;
         this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
+        this.processedCardProClientsStatsRepository = processedCardProClientsStatsRepository;
         this.mapper = mapper;
     }
 
@@ -129,20 +139,20 @@ public class ForwardedEmailProcessingService {
 
         } while (nextPageToken != null);
 
-        log.info("Starting, Total Messages: {}", messages.size());
-
         // Create a thread pool with 3 threads
         // ExecutorService executor = Executors.newFixedThreadPool(5);
 
-        var emailCounter = 0;
+        var goodEmailCounter = 0;
         var notInTrackingSheetCounter = 0;
         var emailsNoAttachmentCounter = 0;
+        var hasDifferentEmailCounter = 0;
         var emptyEmail = 0;
         var emptyPayload = 0;
         var fromCSW = 0;
 
         for(Message message : messages) {
 
+            var isNotInTrackingSheet = false;
             var hasDifferentEmail = false;
             var noAttachmentFound = false;
 
@@ -152,6 +162,7 @@ public class ForwardedEmailProcessingService {
                 ++emptyPayload;
                 continue;
             }
+
             var clientEmailAddress = extractClientEmailAddress(email);
 
             if(clientEmailAddress.isEmpty()){
@@ -193,11 +204,36 @@ public class ForwardedEmailProcessingService {
 
                 // find if a client exits with extracted name & surname since email is not on Tracking Sheet
                 if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
+
                     client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
                     hasDifferentEmail = true;
+                    ++hasDifferentEmailCounter;
                 }
                 else{
+
                     ++notInTrackingSheetCounter;
+
+                    // if name cannot be extracted continue
+                    if(name.isEmpty() || surname.isEmpty())
+                        continue;
+
+                    var clientObj = CardProClient.builder()
+                            .id(null)
+                            .email(clientEmailAddress)
+                            .name(name.isEmpty() ? "N/A" : name)
+                            .surname(surname.isEmpty() ? "N/A" : surname)
+                            .registrationNumber("N/A")
+                            .practiceNumber("N/A")
+                            .profession("N/A")
+                            .dateOfExpiry("N/A")
+                            .hasDifferentEmail(false)
+                            .notInTrackingSheet(true)
+                            .messageId(message.getId())
+                            .images(new HashSet<>())
+                            .build();
+
+                    cardProClientList.add(clientObj);
+
                     continue;
                 }
             }
@@ -206,6 +242,7 @@ public class ForwardedEmailProcessingService {
                 var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
 
                 var clientObj = CardProClient.builder()
+                        .id(null)
                         .email(clientEmailAddress)
                         .name(client.get().getName())
                         .surname(client.get().getSurname())
@@ -214,31 +251,32 @@ public class ForwardedEmailProcessingService {
                         .profession("Registered Social Worker")
                         .dateOfExpiry("31/12/" + LocalDate.now().getYear())
                         .hasDifferentEmail(hasDifferentEmail)
+                        .messageId(message.getId())
                         .build();
 
                 attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
 
                 if(!attachmentsSet.isEmpty()){
 
-                    ++emailCounter;
+                    ++goodEmailCounter;
 
                     clientObj.setImages(attachmentsSet);
                     clientObj.setHasNoAttachment(false);
 
-                    cardProClientList.add(clientObj);
                 }
                 else{
-                    ++emailsNoAttachmentCounter;
-                    ++emailCounter;
 
-                    if(!client.get().getPracticeNumber().isEmpty() && !client.get().getPracticeNumber().isEmpty()){
-                        clientObj.setHasNoAttachment(true);
-                    }
+                    ++emailsNoAttachmentCounter;
+
+                    clientObj.setImages(new HashSet<>());
+                    clientObj.setHasNoAttachment(true);
                 }
+
+                cardProClientList.add(clientObj);
+
 
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {}", clientEmailAddress);
-                ++emailCounter;
                 return false;
             }
         }
@@ -253,7 +291,26 @@ public class ForwardedEmailProcessingService {
         log.info("Total empty payload: {}", emptyPayload);
         log.info("Total empty email: {}", emptyEmail);*/
 
+        ProcessedCardProClientsStats cardProTransaction = processedCardProClientsStatsRepository.save(
+                ProcessedCardProClientsStats.builder()
+                        .totalEmails(messages.size())
+                        .processedEmails(goodEmailCounter)
+                        .notInTrackingSheet(notInTrackingSheetCounter)
+                        .emailsNoAttachment(emailsNoAttachmentCounter)
+                        .hasDifferentEmail(hasDifferentEmailCounter)
+                        .emptyEmails(emptyEmail)
+                        .emptyPayloadEmails(emptyPayload)
+                        .totalEmailsWithMultipleImages(cardProClientList.stream().filter(it -> it.getImages().size() > 1).collect(Collectors.toSet()).size())
+                        .build()
+        );
+
+        // add transaction ids to all records
+        cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction.getTransactionId()));
+
+        cardProClientRepository.deleteAll();
+
         cardProClientRepository.saveAll(cardProClientList);
+        cardProClientList.clear();
 
         return true;
 
@@ -277,12 +334,13 @@ public class ForwardedEmailProcessingService {
         String dateToday = LocalDate.now().format(formatter);
 
         // String baseUrl = "http://192.168.100.5";
-        String baseUrl = "http://68.183.91.109:8080";
-        // String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
-        String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        // String baseUrl = "http://68.183.91.109:8080";
+        String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        // String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
 
-        encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
-        return baseUrl + baseFilePath + encodedPath;
+        // encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        // return baseUrl + baseFilePath + encodedPath;
+        return baseFilePath + filePath;
     }
 
     public String extractClientEmailAddress(Message message){
@@ -290,12 +348,26 @@ public class ForwardedEmailProcessingService {
         var email = "";
 
         for(MessagePart emailMessagePart: message.getPayload().getParts()){
-
             if(emailMessagePart.getParts() != null){
                 for (MessagePart subPart : emailMessagePart.getParts()) {
                     if(subPart.getMimeType().equals("text/plain")){
                         var emailBody = new String(Base64.getUrlDecoder().decode(subPart.getBody().getData()), StandardCharsets.UTF_8);
-                        email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
+
+                        if(emailBody.contains("<"))
+                            email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
+                    } else if (subPart.getMimeType().equals("multipart/alternative")) {
+                        for(MessagePart innerPart: subPart.getParts()){
+                            if(innerPart.getMimeType().equals("text/plain")){
+                                try{
+                                    var emailBody = new String(Base64.getUrlDecoder().decode(innerPart.getBody().getData()), StandardCharsets.UTF_8);
+
+                                    if(emailBody.contains("<"))
+                                        email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
+                                } catch (Exception e) {
+                                    return email;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -308,7 +380,6 @@ public class ForwardedEmailProcessingService {
             }
         }*/
 
-        // log.info("Client email {}", email);
         return email;
 
     }
@@ -357,8 +428,10 @@ public class ForwardedEmailProcessingService {
 
                     images.add(
                             Image.builder()
-                                    .attachmentPath(encodeAttachmentFilePath(filePath))
-                                    .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
+                                    .id(null)
+                                    //.attachmentPath(encodeAttachmentFilePath(filePath))
+                                    .attachmentPath(filePath)
+                                    .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
                                     .build()
                     );
                 }
@@ -369,8 +442,10 @@ public class ForwardedEmailProcessingService {
             var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, part, client);
             images.add(
                     Image.builder()
-                            .attachmentPath(encodeAttachmentFilePath(filePath))
-                            .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1))
+                            .id(null)
+                            //.attachmentPath(encodeAttachmentFilePath(filePath))
+                            .attachmentPath(filePath)
+                            .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
                             .build()
             );
         }
@@ -406,7 +481,8 @@ public class ForwardedEmailProcessingService {
             byte[] fileData = Base64.getDecoder().decode(base64);
 
             String userHome = System.getProperty("user.home");
-            String filePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
+            // String filePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
+            String filePath =  userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
             File file = new File(filePath);
 
             // Ensure directory exists
@@ -445,7 +521,7 @@ public class ForwardedEmailProcessingService {
                 fileName.append("_").append(Integer.valueOf(partId));
             }
 
-            // fileName.append(fileExtension);
+            fileName.append(fileExtension);
 
             return fileName.toString();
 
@@ -464,8 +540,6 @@ public class ForwardedEmailProcessingService {
     public ImageDto softDeleteImage(ImageDeleteDto imageDeleteDto){
 
         var clientImagesSize = imagesRepository.countByCardProClient_IdAndDeletedFalse(imageDeleteDto.clientId());
-
-        log.info("Pre-processing: image size {}", clientImagesSize);
 
         if(clientImagesSize > 1){
 

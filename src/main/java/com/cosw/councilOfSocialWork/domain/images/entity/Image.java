@@ -14,7 +14,7 @@ import lombok.*;
 public class Image extends BaseModel {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+    private Long id = null;
     private String attachmentFileName;
     private String attachmentPath;
     private String croppedPath;

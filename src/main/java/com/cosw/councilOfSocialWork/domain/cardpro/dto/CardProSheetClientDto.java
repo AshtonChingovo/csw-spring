@@ -13,6 +13,7 @@ public record CardProSheetClientDto(
         String practiceNumber,
         String email,
         String dateOfExpiry,
+        boolean notInTrackingSheet,
         boolean hasDifferentEmail,
         boolean hasNoAttachment,
         Set<ImageDto> images

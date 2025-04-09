@@ -1,7 +1,7 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
-import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
+import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import org.springframework.data.domain.Page;
 
 public interface CardProService {
@@ -10,6 +10,8 @@ public interface CardProService {
 
     boolean generateCardProData();
 
-    CardProStatsDto getCardProStats();
+    boolean downloadCardProData();
+
+    ProcessedCardProClientsStats getCardProStats();
 
 }

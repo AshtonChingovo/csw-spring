@@ -2,6 +2,7 @@ package com.cosw.councilOfSocialWork.domain.cardpro.controller;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
+import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -31,12 +32,12 @@ public class CardProController {
 
     @GetMapping(path = "/download")
     public ResponseEntity<?> downloadCardProSheet(){
-        cardProService.generateCardProData();
+        cardProService.downloadCardProData();
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
     @GetMapping(path = "/stats")
-    public ResponseEntity<CardProStatsDto> getCardProStats(){
+    public ResponseEntity<ProcessedCardProClientsStats> getCardProStats(){
         return new ResponseEntity<>(cardProService.getCardProStats(), HttpStatus.OK);
     }
 
