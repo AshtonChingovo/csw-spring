@@ -21,10 +21,15 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @Slf4j
@@ -117,8 +122,34 @@ public class CardProServiceImpl implements CardProService{
         }
     }
 
-    public boolean zipFolder(){
-        return false;
+    public static void zipDirectory() throws IOException {
+
+        String userHome = System.getProperty("user.home");
+        String currentYear = String.valueOf(LocalDate.now().getYear());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+        String dateToday = LocalDate.now().format(formatter);
+
+
+        String sourceDir = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files";
+        String zipFile = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "batch.zip";
+
+        Path sourceDirPath = Paths.get(sourceDir);
+        Path zipFilePath = Paths.get(zipFile);
+
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFilePath))) {
+            Files.walk(sourceDirPath)
+                    .filter(path -> !Files.isDirectory(path))
+                    .forEach(path -> {
+                        ZipEntry zipEntry = new ZipEntry(sourceDirPath.relativize(path).toString().replace("\\", "/"));
+                        try {
+                            zos.putNextEntry(zipEntry);
+                            Files.copy(path, zos);
+                            zos.closeEntry();
+                        } catch (IOException e) {
+                            System.err.println("Failed to zip file: " + path + " - " + e.getMessage());
+                        }
+                    });
+        }
     }
 
     @Override
@@ -130,6 +161,12 @@ public class CardProServiceImpl implements CardProService{
         sortCardProData(cardProClientList);
 
         new GenerateThenDownloadCardProSheet(cardProClientList).createFile();
+
+        try {
+            zipDirectory();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         return true;
     }
