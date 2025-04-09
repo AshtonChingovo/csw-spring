@@ -1,10 +1,12 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -144,13 +146,8 @@ public class GenerateThenDownloadCardProSheet {
             row.getCell(4).setCellStyle(style);
         }
 
-        String fileName = "N/A";
+        row.createCell(5).setCellValue(createNewAttachmentFileName(cardProClient));
 
-        if(!cardProClient.getImages().isEmpty() && cardProClient.getImages().size() > 1){
-            fileName = cardProClient.getImages().iterator().next().getAttachmentFileName();
-        }
-
-        row.createCell(5).setCellValue(fileName);
         if(cardProClient.isHasDifferentEmail()){
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -164,6 +161,25 @@ public class GenerateThenDownloadCardProSheet {
 
     }
 
+    private String createNewAttachmentFileName(CardProClient client){
+        try {
+
+            String[] usernames = client.getName().split(" ");
+            StringBuilder fileName = new StringBuilder();
+
+            for(String name: usernames){
+                fileName.append(name).append(" ");
+            }
+
+            fileName.append(client.getSurname());
+
+            return fileName.toString();
+
+        } catch (UsernameNotFoundException e) {
+            return "";
+        }
+    }
+
     void createThenSaveFile(Workbook workbook){
 
         String filename = "cardpro.xlsx";
@@ -173,7 +189,7 @@ public class GenerateThenDownloadCardProSheet {
         String dateToday = LocalDate.now().format(formatter);
 
         String userHome = System.getProperty("user.home");
-        String filePath = userHome + File.separator + "Downloads" + File.separator  + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator + filename;
+        String filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator + filename;
 
         File file = new File(filePath);
 
