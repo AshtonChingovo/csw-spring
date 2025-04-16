@@ -24,7 +24,10 @@ public class SecurityConfig {
                     configuration.setAllowedOrigins(Arrays.asList("*"));
                     configuration.setAllowedMethods(Arrays.asList("*"));
                     configuration.setAllowedHeaders(Arrays.asList("*"));
+                    configuration.setExposedHeaders(Arrays.asList("Content-Disposition"));
+
                     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
                     source.registerCorsConfiguration("/**", configuration);
                     httpSecurityCorsConfigurer.configurationSource(source);
                 })

@@ -2,6 +2,7 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 
 public interface CardProService {
@@ -10,7 +11,7 @@ public interface CardProService {
 
     boolean generateCardProData();
 
-    boolean downloadCardProData();
+    Resource downloadCardProData(String batchNumber);
 
     ProcessedCardProClientsStats getCardProStats();
 

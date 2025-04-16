@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=builder /app/target/csw-0.0.1-SNAPSHOT.jar /app/app.jar
 
 # Set environment variables for database connection
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/cosw
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/csw
 ENV SPRING_DATASOURCE_USERNAME=root
 ENV SPRING_DATASOURCE_PASSWORD=root
 

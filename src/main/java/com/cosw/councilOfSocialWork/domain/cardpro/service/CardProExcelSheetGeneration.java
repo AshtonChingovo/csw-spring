@@ -1,13 +1,11 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
-import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,12 +15,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
-public class GenerateThenDownloadCardProSheet {
+public class CardProExcelSheetGeneration {
 
     List<CardProClient> cardProClientsList;
     CellStyle style;
 
-    public GenerateThenDownloadCardProSheet(List<CardProClient> cardProClientsList) {
+    public CardProExcelSheetGeneration(List<CardProClient> cardProClientsList) {
         this.cardProClientsList = cardProClientsList;
     }
 

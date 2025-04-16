@@ -4,8 +4,11 @@ import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProService;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,9 +34,15 @@ public class CardProController {
     }
 
     @GetMapping(path = "/download")
-    public ResponseEntity<?> downloadCardProSheet(){
-        cardProService.downloadCardProData();
-        return ResponseEntity.status(HttpStatus.OK).build();
+    public ResponseEntity<Resource> downloadCardProSheet(
+            @RequestParam(defaultValue = "batch") String batchNumber
+    ){
+        Resource file = cardProService.downloadCardProData(batchNumber);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
     }
 
     @GetMapping(path = "/stats")

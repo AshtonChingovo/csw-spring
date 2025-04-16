@@ -150,6 +150,12 @@ public class ForwardedEmailProcessingService {
         var emptyPayload = 0;
         var fromCSW = 0;
 
+        // email lists
+        var notInTrackingSheetEmailList = new ArrayList<String>();
+        var hasDifferentEmailList = new ArrayList<String>();
+        var emptyPayloadEmailsList = new ArrayList<String>();
+        var totalEmailWithMultipleImagesList = new ArrayList<String>();
+
         for(Message message : messages) {
 
             var isNotInTrackingSheet = false;
@@ -207,9 +213,14 @@ public class ForwardedEmailProcessingService {
 
                     client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
                     hasDifferentEmail = true;
+
+                    hasDifferentEmailList.add(clientEmailAddress);
+
                     ++hasDifferentEmailCounter;
                 }
                 else{
+
+                    notInTrackingSheetEmailList.add(clientEmailAddress);
 
                     ++notInTrackingSheetCounter;
 
@@ -266,6 +277,8 @@ public class ForwardedEmailProcessingService {
                 }
                 else{
 
+                    emptyPayloadEmailsList.add(clientEmailAddress);
+
                     ++emailsNoAttachmentCounter;
 
                     clientObj.setImages(new HashSet<>());
@@ -296,11 +309,15 @@ public class ForwardedEmailProcessingService {
                         .totalEmails(messages.size())
                         .processedEmails(goodEmailCounter)
                         .notInTrackingSheet(notInTrackingSheetCounter)
+                        .notInTrackingSheetEmailList(notInTrackingSheetEmailList)
                         .emailsNoAttachment(emailsNoAttachmentCounter)
                         .hasDifferentEmail(hasDifferentEmailCounter)
+                        .hasDifferentEmailList(hasDifferentEmailList)
                         .emptyEmails(emptyEmail)
                         .emptyPayloadEmails(emptyPayload)
+                        .emptyPayloadEmailsList(emptyPayloadEmailsList)
                         .totalEmailsWithMultipleImages(cardProClientList.stream().filter(it -> it.getImages().size() > 1).collect(Collectors.toSet()).size())
+                        .totalEmailWithMultipleImagesList(cardProClientList.stream().filter(it -> it.getImages().size() > 1).map(it -> it.getEmail()).toList())
                         .build()
         );
 
@@ -334,13 +351,13 @@ public class ForwardedEmailProcessingService {
         String dateToday = LocalDate.now().format(formatter);
 
         // String baseUrl = "http://192.168.100.5";
-        // String baseUrl = "http://68.183.91.109:8080";
-        String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
-        // String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        String baseUrl = "http://68.183.91.109:8080";
+        // String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
+        String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
 
-        // encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
-        // return baseUrl + baseFilePath + encodedPath;
-        return baseFilePath + filePath;
+        encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseUrl + baseFilePath + encodedPath;
+        // return baseFilePath + filePath;
     }
 
     public String extractClientEmailAddress(Message message){

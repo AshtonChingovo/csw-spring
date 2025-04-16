@@ -12,6 +12,8 @@ import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -62,10 +64,10 @@ public class CardProServiceImpl implements CardProService{
 
     @Override
     public boolean generateCardProData() {
-        return new GenerateThenDownloadCardProSheet(cardProClientRepository.findAll()).createFile();
+        return new CardProExcelSheetGeneration(cardProClientRepository.findAll()).createFile();
     }
 
-    public boolean sortCardProData(List<CardProClient> cardProClientList){
+    public boolean renameAndMoveCardProPictures(List<CardProClient> cardProClientList){
 
         String userHome = System.getProperty("user.home");
         String currentYear = String.valueOf(LocalDate.now().getYear());
@@ -116,27 +118,26 @@ public class CardProServiceImpl implements CardProService{
             return fileName.toString();
 
         } catch (UsernameNotFoundException e) {
-            log.error("Client not found");
             log.error("ERROR createNewAttachmentFileName() :: {}", client.getEmail());
             return "";
         }
     }
 
-    public static void zipDirectory() throws IOException {
+    public static String zipCardProDataDirectory(String fileName) throws IOException {
 
         String userHome = System.getProperty("user.home");
+
         String currentYear = String.valueOf(LocalDate.now().getYear());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         String dateToday = LocalDate.now().format(formatter);
 
-
         String sourceDir = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files";
-        String zipFile = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "batch.zip";
+        String zipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator + "Batch " + fileName + ".zip";
 
         Path sourceDirPath = Paths.get(sourceDir);
-        Path zipFilePath = Paths.get(zipFile);
+        Path zipFile = Paths.get(zipFilePath);
 
-        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFilePath))) {
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
             Files.walk(sourceDirPath)
                     .filter(path -> !Files.isDirectory(path))
                     .forEach(path -> {
@@ -150,25 +151,41 @@ public class CardProServiceImpl implements CardProService{
                         }
                     });
         }
+
+        return zipFilePath;
+
     }
 
     @Override
-    public boolean downloadCardProData() {
+    public Resource downloadCardProData(String batchNumber) {
+
+        Resource resource;
+        String userHome = System.getProperty("user.home");
+
+        String currentYear = String.valueOf(LocalDate.now().getYear());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+        String dateToday = LocalDate.now().format(formatter);
+
+        var createdZipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator;
 
         // get list of records with only one valid image
         List<CardProClient> cardProClientList = cardProClientRepository.findAllValidClients();
 
-        sortCardProData(cardProClientList);
+        renameAndMoveCardProPictures(cardProClientList);
 
-        new GenerateThenDownloadCardProSheet(cardProClientList).createFile();
+        new CardProExcelSheetGeneration(cardProClientList).createFile();
 
         try {
-            zipDirectory();
+            zipCardProDataDirectory(batchNumber);
+
+            Path filePath = Paths.get(createdZipFilePath).resolve("Batch " + batchNumber + ".zip");
+            resource = new UrlResource(filePath.toUri());
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        return true;
+        return resource;
     }
 
     @Override
