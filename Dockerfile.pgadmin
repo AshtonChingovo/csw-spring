@@ -1,9 +1,0 @@
-# Use the dpage/pgadmin4 image for pgAdmin
-FROM dpage/pgadmin4
-
-# Set environment variables
-ENV PGADMIN_DEFAULT_EMAIL=postgres@gmail.com
-ENV PGADMIN_DEFAULT_PASSWORD=password
-
-# Expose the pgAdmin web interface port
-EXPOSE 80

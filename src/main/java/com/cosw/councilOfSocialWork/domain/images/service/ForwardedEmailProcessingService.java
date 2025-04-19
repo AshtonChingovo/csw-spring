@@ -19,6 +19,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -64,11 +65,13 @@ public class ForwardedEmailProcessingService {
     private List<CardProClient> cardProClientList = new ArrayList<>();
     private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
 
-    private static final String APPLICATION_NAME = "CSW Email Service";
+    private static final String APPLICATION_NAME = "csw";
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
+
+    private static String redirectUri = "https://cswtest.site/api/oauth2/callback";
 
     public ForwardedEmailProcessingService(
             ImagesRepository imagesRepository,
@@ -93,7 +96,24 @@ public class ForwardedEmailProcessingService {
                 .setAccessType("offline")
                 .build();
 
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+        Credential credential = flow.loadCredential("user");
+
+        if (credential == null || credential.getAccessToken() == null) {
+            // This is the important part: manually initiate auth URL with custom redirect
+            String authUrl = flow.newAuthorizationUrl()
+                    .setRedirectUri(redirectUri)
+                    .build();
+
+            log.info("🔐 Please authorize the app by visiting:\n {}", authUrl);
+            throw new IllegalStateException("Authorization required. Visit the URL above.");
+
+        }
+        else{
+            log.info("Access Token: {}", credential.getAccessToken());
+            log.info("Refresh Token: {}", credential.getRefreshToken());
+        }
+
+        return credential;
     }
 
     public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
@@ -103,9 +123,15 @@ public class ForwardedEmailProcessingService {
 
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
-        Gmail service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, getEmailServerCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+        Gmail service = null;
+        try {
+            service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, getEmailServerCredentials(HTTP_TRANSPORT))
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+        } catch (IllegalStateException e) {
+            log.info("ERROR: null Google OAuth token");
+            return false;
+        }
 
         // ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
 
