@@ -2,6 +2,8 @@ package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @RestController
 @RequestMapping(path = "api/v1/tracking-sheet")
 public class TrackingSheetController {

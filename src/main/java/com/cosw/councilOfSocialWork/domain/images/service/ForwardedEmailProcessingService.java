@@ -19,7 +19,6 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -30,6 +29,7 @@ import com.google.api.services.gmail.model.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -66,12 +66,20 @@ public class ForwardedEmailProcessingService {
     private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
 
     private static final String APPLICATION_NAME = "csw";
+    private static final String APPLICATION_NAME_DEV = "csw_dev";
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
+    private static final String CREDENTIALS_FILE_PATH_TEST = "/credentials.json";  // Downloaded from Google Cloud Console
+    private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
 
     private static String redirectUri = "https://cswtest.site/api/oauth2/callback";
+
+    private static String TEST_ENV = "test";
+    private static String DEV_ENV = "dev";
+
+    @Value("${spring.profiles.active}")
+    private String activeProfile;
 
     public ForwardedEmailProcessingService(
             ImagesRepository imagesRepository,
@@ -86,8 +94,8 @@ public class ForwardedEmailProcessingService {
         this.mapper = mapper;
     }
 
-    public static Credential getEmailServerCredentials(final HttpTransport HTTP_TRANSPORT) throws IOException {
-        InputStream inputStream = CardProServiceImpl.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
+    public static Credential getEmailServerCredentials_Test(final HttpTransport HTTP_TRANSPORT) throws IOException {
+        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -98,13 +106,19 @@ public class ForwardedEmailProcessingService {
 
         Credential credential = flow.loadCredential("user");
 
+        log.info("🔐 Test Mode");
+
         if (credential == null || credential.getAccessToken() == null) {
+
+            log.info("🔐 Credentials not Found");
+
             // This is the important part: manually initiate auth URL with custom redirect
             String authUrl = flow.newAuthorizationUrl()
                     .setRedirectUri(redirectUri)
                     .build();
 
             log.info("🔐 Please authorize the app by visiting:\n {}", authUrl);
+
             throw new IllegalStateException("Authorization required. Visit the URL above.");
 
         }
@@ -116,20 +130,38 @@ public class ForwardedEmailProcessingService {
         return credential;
     }
 
-    public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
+    public static Credential getEmailServerCredentials_Dev(final HttpTransport HTTP_TRANSPORT) throws IOException {
+        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
-        //clear current data
-        // cardProClientRepository.deleteAll();
+        log.info("🔐 Dev Mode");
+
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
+                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
+                .setAccessType("offline")
+                .build();
+
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    }
+
+    public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
 
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
         Gmail service = null;
+
         try {
-            service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, getEmailServerCredentials(HTTP_TRANSPORT))
-                    .setApplicationName(APPLICATION_NAME)
+
+            Credential credential = TEST_ENV.equals(activeProfile) ? getEmailServerCredentials_Test(HTTP_TRANSPORT) : getEmailServerCredentials_Dev(HTTP_TRANSPORT);
+            String applicationName = TEST_ENV.equals(activeProfile) ? APPLICATION_NAME : APPLICATION_NAME_DEV;
+
+            service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+                    .setApplicationName(applicationName)
                     .build();
+
         } catch (IllegalStateException e) {
-            log.info("ERROR: null Google OAuth token");
+            log.info("ERROR: NULL Google OAuth token");
             return false;
         }
 
@@ -504,6 +536,8 @@ public class ForwardedEmailProcessingService {
         String filename = createNewAttachmentFileName(client, partId, fileExtension);
         String attachmentId = part.getBody().getAttachmentId();
 
+        String filePath = "";
+
         if (attachmentId != null && !filename.isEmpty()) {
 
             String currentYear = String.valueOf(LocalDate.now().getYear());
@@ -525,7 +559,14 @@ public class ForwardedEmailProcessingService {
 
             String userHome = System.getProperty("user.home");
             // String filePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
-            String filePath =  userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
+
+            if(TEST_ENV.equals(activeProfile)){
+               filePath =  "csw_files" + File.separator + "images" + File.separator + filename;
+            }
+            else{
+                filePath =  userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
+            }
+
             File file = new File(filePath);
 
             // Ensure directory exists

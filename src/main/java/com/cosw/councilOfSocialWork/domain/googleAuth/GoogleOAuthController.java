@@ -36,8 +36,6 @@ public class GoogleOAuthController {
     @GetMapping("/callback")
     public ResponseEntity<String> handleGoogleCallback(@RequestParam("code") String code) throws Exception {
 
-        log.info("Callback <-> activated");
-
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
         InputStream inputStream = getClass().getResourceAsStream(CREDENTIALS_FILE_PATH);
@@ -55,12 +53,8 @@ public class GoogleOAuthController {
 
         flow.createAndStoreCredential(tokenResponse, "user");
 
-        log.info("TOKEN <-> retrieval");
-
         try{
             Credential credential = flow.loadCredential("user");
-            log.info("Access Token: {}", credential.getAccessToken());
-            log.info("Refresh Token: {}", credential.getRefreshToken());
 
         }
         catch (Exception e) {

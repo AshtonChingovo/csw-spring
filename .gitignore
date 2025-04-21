@@ -6,6 +6,7 @@ target/
 
 src/main/resources/application.properties
 src/main/resources/credentials.json
+src/main/resources/credentials_dev.json
 src/main/resources/credentials_old.json
 
 tokens/
