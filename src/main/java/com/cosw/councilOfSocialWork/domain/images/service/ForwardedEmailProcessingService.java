@@ -4,7 +4,6 @@ import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.ProcessedCardProClientsStatsRepository;
-import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProServiceImpl;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDeleteDto;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
@@ -106,11 +105,7 @@ public class ForwardedEmailProcessingService {
 
         Credential credential = flow.loadCredential("user");
 
-        log.info("🔐 Test Mode");
-
         if (credential == null || credential.getAccessToken() == null) {
-
-            log.info("🔐 Credentials not Found");
 
             // This is the important part: manually initiate auth URL with custom redirect
             String authUrl = flow.newAuthorizationUrl()
@@ -133,8 +128,6 @@ public class ForwardedEmailProcessingService {
     public static Credential getEmailServerCredentials_Dev(final HttpTransport HTTP_TRANSPORT) throws IOException {
         InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        log.info("🔐 Dev Mode");
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
@@ -400,24 +393,6 @@ public class ForwardedEmailProcessingService {
         service.users().messages().modify("me", messageId, modifyRequest).execute();
     }
 
-    public String encodeAttachmentFilePath(String filePath){
-        String encodedPath;
-        String userHome = System.getProperty("user.home");
-
-        String currentYear = String.valueOf(LocalDate.now().getYear());
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
-        String dateToday = LocalDate.now().format(formatter);
-
-        // String baseUrl = "http://192.168.100.5";
-        String baseUrl = "http://68.183.91.109:8080";
-        // String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
-        String baseFilePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator;
-
-        encodedPath = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
-        return baseUrl + baseFilePath + encodedPath;
-        // return baseFilePath + filePath;
-    }
-
     public String extractClientEmailAddress(Message message){
         // Extract the ---------- Forwarded message --------- section
         var email = "";
@@ -500,13 +475,18 @@ public class ForwardedEmailProcessingService {
                 if (subPart.getFilename() != null && !subPart.getFilename().isEmpty() && (subPart.getFilename().contains("jpeg") || subPart.getFilename().contains("png") || subPart.getFilename().contains("jpg"))) {
 
                     var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, subPart, client);
+                    var fileName = filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf("."));
+
+                    if(TEST_ENV.equals(activeProfile)){
+                        filePath = encodeAttachmentFilePath(filePath);
+                    }
 
                     images.add(
                             Image.builder()
                                     .id(null)
                                     //.attachmentPath(encodeAttachmentFilePath(filePath))
                                     .attachmentPath(filePath)
-                                    .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
+                                    .attachmentFileName(fileName)
                                     .build()
                     );
                 }
@@ -527,6 +507,14 @@ public class ForwardedEmailProcessingService {
 
         return images;
 
+    }
+
+    public String encodeAttachmentFilePath(String filePath){
+        String encodedFileName;
+
+        String baseFilePath = "/api" + File.separator;
+        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseFilePath + encodedFileName;
     }
 
     private String downloadAttachmentAndReturnNewFilePath(Gmail service, String messageId, MessagePart part, TrackingSheetClient client) throws IOException {
