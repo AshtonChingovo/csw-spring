@@ -12,6 +12,7 @@ import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,6 +46,12 @@ public class CardProServiceImpl implements CardProService{
     private final EmailConfiguration emailConfiguration;
     private final CardProClientMapper mapper;
 
+    private static String TEST_ENV = "test";
+    private static String DEV_ENV = "dev";
+
+    @Value("${spring.profiles.active}")
+    private String activeProfile;
+
     public CardProServiceImpl(
             CardProClientRepository cardProClientRepository,
             ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository,
@@ -59,12 +68,62 @@ public class CardProServiceImpl implements CardProService{
     @Override
     public Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy) {
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
-        return cardProClientRepository.findAllSorted(page).map(mapper::cardProClientToCardProSheetClientDto);
+        return cardProClientRepository.findAllSorted(page).map(client -> {
+            client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
+            return mapper.cardProClientToCardProSheetClientDto(client);
+        });
+    }
+
+    public String encodeAttachmentFilePath(String filePath){
+        String encodedFileName;
+
+        String baseFilePath = "/api" + File.separator;
+        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseFilePath + encodedFileName;
     }
 
     @Override
     public boolean generateCardProData() {
-        return new CardProExcelSheetGeneration(cardProClientRepository.findAll()).createFile();
+        return new CardProExcelSheetGeneration(cardProClientRepository.findAll(), activeProfile).createFile();
+    }
+
+    @Override
+    public Resource downloadCardProData(String batchNumber) {
+
+        Resource resource;
+        String userHome = System.getProperty("user.home");
+
+        String currentYear = String.valueOf(LocalDate.now().getYear());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+        String dateToday = LocalDate.now().format(formatter);
+
+        var createdZipFilePath = "";
+
+        if(TEST_ENV.equals(activeProfile)){
+            createdZipFilePath = "csw_files" + File.separator;
+        }
+        else {
+            createdZipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator;
+        }
+
+        // get list of records with only one valid image
+        List<CardProClient> cardProClientList = cardProClientRepository.findAllValidClients();
+
+        renameAndMoveCardProPictures(cardProClientList);
+
+        new CardProExcelSheetGeneration(cardProClientList, activeProfile).createFile();
+
+        try {
+            zipCardProDataDirectory(batchNumber);
+
+            Path filePath = Paths.get(createdZipFilePath).resolve("Batch " + batchNumber + ".zip");
+            resource = new UrlResource(filePath.toUri());
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return resource;
     }
 
     public boolean renameAndMoveCardProPictures(List<CardProClient> cardProClientList){
@@ -74,10 +133,17 @@ public class CardProServiceImpl implements CardProService{
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         String dateToday = LocalDate.now().format(formatter);
 
-        String baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator;
+        String baseFilePath = "";
 
-        // get move files to new folder
+        if(TEST_ENV.equals(activeProfile))
+            baseFilePath =  "csw_files" + File.separator + "cardpro_files" + File.separator;
+        else
+            baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator;
+
+        String finalBaseFilePath = baseFilePath;
+
         cardProClientList.forEach(cardProClient -> {
+
             Optional<Image> image = cardProClient.getImages().stream()
                     .filter(it -> it.getDeleted() == null || !it.getDeleted())
                     .findFirst();
@@ -85,7 +151,7 @@ public class CardProServiceImpl implements CardProService{
             image.ifPresent(clientImage -> {
 
                 var fileName = createNewAttachmentFileName(cardProClient, clientImage);
-                var newFilePath = baseFilePath + fileName;
+                var newFilePath = finalBaseFilePath + fileName;
 
                 try {
                     FileUtils.moveFile(FileUtils.getFile(clientImage.getAttachmentPath()), FileUtils.getFile(newFilePath));
@@ -111,7 +177,6 @@ public class CardProServiceImpl implements CardProService{
 
             fileName.append(client.getSurname());
 
-
             var lastIndexOfDot = image.getAttachmentPath().lastIndexOf(".");
             fileName.append(image.getAttachmentPath().substring(lastIndexOfDot));
 
@@ -123,7 +188,7 @@ public class CardProServiceImpl implements CardProService{
         }
     }
 
-    public static String zipCardProDataDirectory(String fileName) throws IOException {
+    public String zipCardProDataDirectory(String fileName) throws IOException {
 
         String userHome = System.getProperty("user.home");
 
@@ -131,8 +196,17 @@ public class CardProServiceImpl implements CardProService{
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         String dateToday = LocalDate.now().format(formatter);
 
-        String sourceDir = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files";
-        String zipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator + "Batch " + fileName + ".zip";
+        String sourceDir = "";
+        String zipFilePath = "";
+
+        if(TEST_ENV.equals(activeProfile)){
+            sourceDir = "csw_files" + File.separator + "cardpro_files";
+            zipFilePath = "csw_files" + File.separator + "Batch " + fileName + ".zip";
+        }
+        else{
+            sourceDir = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files";
+            zipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator + "Batch " + fileName + ".zip";
+        }
 
         Path sourceDirPath = Paths.get(sourceDir);
         Path zipFile = Paths.get(zipFilePath);
@@ -154,38 +228,6 @@ public class CardProServiceImpl implements CardProService{
 
         return zipFilePath;
 
-    }
-
-    @Override
-    public Resource downloadCardProData(String batchNumber) {
-
-        Resource resource;
-        String userHome = System.getProperty("user.home");
-
-        String currentYear = String.valueOf(LocalDate.now().getYear());
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
-        String dateToday = LocalDate.now().format(formatter);
-
-        var createdZipFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator;
-
-        // get list of records with only one valid image
-        List<CardProClient> cardProClientList = cardProClientRepository.findAllValidClients();
-
-        renameAndMoveCardProPictures(cardProClientList);
-
-        new CardProExcelSheetGeneration(cardProClientList).createFile();
-
-        try {
-            zipCardProDataDirectory(batchNumber);
-
-            Path filePath = Paths.get(createdZipFilePath).resolve("Batch " + batchNumber + ".zip");
-            resource = new UrlResource(filePath.toUri());
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        return resource;
     }
 
     @Override

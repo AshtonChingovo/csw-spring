@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,11 +20,19 @@ import java.util.List;
 @Slf4j
 public class CardProExcelSheetGeneration {
 
+    Environment environment;
+
     List<CardProClient> cardProClientsList;
     CellStyle style;
 
-    public CardProExcelSheetGeneration(List<CardProClient> cardProClientsList) {
+    private static String TEST_ENV = "test";
+    private static String DEV_ENV = "dev";
+
+    private String activeProfile;
+
+    public CardProExcelSheetGeneration(List<CardProClient> cardProClientsList, String activeProfile) {
         this.cardProClientsList = cardProClientsList;
+        this.activeProfile = activeProfile;
     }
 
     boolean createFile(){
@@ -144,7 +155,7 @@ public class CardProExcelSheetGeneration {
             row.getCell(4).setCellStyle(style);
         }
 
-        row.createCell(5).setCellValue(createNewAttachmentFileName(cardProClient));
+        row.createCell(5).setCellValue(attachmentFileName(cardProClient));
 
         if(cardProClient.isHasDifferentEmail()){
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
@@ -159,7 +170,7 @@ public class CardProExcelSheetGeneration {
 
     }
 
-    private String createNewAttachmentFileName(CardProClient client){
+    private String attachmentFileName(CardProClient client){
         try {
 
             String[] usernames = client.getName().split(" ");
@@ -186,10 +197,21 @@ public class CardProExcelSheetGeneration {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         String dateToday = LocalDate.now().format(formatter);
 
-        String userHome = System.getProperty("user.home");
-        String filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator + filename;
+        String userHome = "";
+        String filePath = "";
+
+        if(TEST_ENV.equals(activeProfile)){
+            filePath =  "csw_files" + File.separator + "cardpro_files" + File.separator + filename;
+        }
+        else{
+            userHome = System.getProperty("user.home");
+            filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator + filename;
+        }
 
         File file = new File(filePath);
+
+        log.info("Expressions {} {}", TEST_ENV.equals(activeProfile), activeProfile);
+        log.info("Cardpro ExcelFile {}", filePath);
 
         // Ensure directory exists
         file.getParentFile().mkdirs();
@@ -199,7 +221,7 @@ public class CardProExcelSheetGeneration {
             workbook.write(outputStream);
             workbook.close();
         } catch (IOException e) {
-            log.error("ERROR {}", e.getMessage());
+            log.error("ERROR CardProExcelSheetGeneration createThenSaveFile() {}", e.getMessage());
             throw new RuntimeException(e);
         }
 

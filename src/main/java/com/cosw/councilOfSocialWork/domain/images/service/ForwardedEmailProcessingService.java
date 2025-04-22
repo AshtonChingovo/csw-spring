@@ -477,14 +477,9 @@ public class ForwardedEmailProcessingService {
                     var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, subPart, client);
                     var fileName = filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf("."));
 
-                    if(TEST_ENV.equals(activeProfile)){
-                        filePath = encodeAttachmentFilePath(filePath);
-                    }
-
                     images.add(
                             Image.builder()
                                     .id(null)
-                                    //.attachmentPath(encodeAttachmentFilePath(filePath))
                                     .attachmentPath(filePath)
                                     .attachmentFileName(fileName)
                                     .build()
@@ -498,7 +493,6 @@ public class ForwardedEmailProcessingService {
             images.add(
                     Image.builder()
                             .id(null)
-                            //.attachmentPath(encodeAttachmentFilePath(filePath))
                             .attachmentPath(filePath)
                             .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
                             .build()
@@ -507,14 +501,6 @@ public class ForwardedEmailProcessingService {
 
         return images;
 
-    }
-
-    public String encodeAttachmentFilePath(String filePath){
-        String encodedFileName;
-
-        String baseFilePath = "/api" + File.separator;
-        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
-        return baseFilePath + encodedFileName;
     }
 
     private String downloadAttachmentAndReturnNewFilePath(Gmail service, String messageId, MessagePart part, TrackingSheetClient client) throws IOException {
@@ -606,7 +592,20 @@ public class ForwardedEmailProcessingService {
 
     public Page<ImageDto> getImages(int pageNumber, int pageSize, String sortBy){
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
-        return imagesRepository.findAll(page).map(mapper::imageToImageDto);
+        return imagesRepository
+                .findAll(page)
+                .map(image -> {
+                    image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
+                    return mapper.imageToImageDto(image);
+                });
+    }
+
+    public String encodeAttachmentFilePath(String filePath){
+        String encodedFileName;
+
+        String baseFilePath = "/api" + File.separator;
+        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseFilePath + encodedFileName;
     }
 
     public ImageDto softDeleteImage(ImageDeleteDto imageDeleteDto){
