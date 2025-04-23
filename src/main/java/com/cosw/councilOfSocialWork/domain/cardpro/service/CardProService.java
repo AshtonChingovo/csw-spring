@@ -7,7 +7,7 @@ import org.springframework.data.domain.Page;
 
 public interface CardProService {
 
-    Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy);
+    Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy, String search, String filter);
 
     boolean generateCardProData();
 

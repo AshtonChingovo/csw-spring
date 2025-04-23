@@ -29,14 +29,14 @@ public class CardProController {
     public ResponseEntity<Page<CardProSheetClientDto>> getCardProSheet(
             @RequestParam(defaultValue = "0") Integer pageNumber,
             @RequestParam(defaultValue = "10") Integer pageSize,
-            @RequestParam(defaultValue = "id") String sortBy){
-        return new ResponseEntity<>(cardProService.getCardProClients(pageNumber, pageSize, sortBy), HttpStatus.OK);
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "all") String filter){
+        return new ResponseEntity<>(cardProService.getCardProClients(pageNumber, pageSize, sortBy, search, filter), HttpStatus.OK);
     }
 
     @GetMapping(path = "/download")
-    public ResponseEntity<Resource> downloadCardProSheet(
-            @RequestParam(defaultValue = "batch") String batchNumber
-    ){
+    public ResponseEntity<Resource> downloadCardProSheet(@RequestParam(defaultValue = "batch") String batchNumber){
         Resource file = cardProService.downloadCardProData(batchNumber);
 
         return ResponseEntity.ok()

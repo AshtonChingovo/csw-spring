@@ -49,6 +49,10 @@ public class CardProServiceImpl implements CardProService{
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
 
+    private final String FILTER_BY_ALL = "all";
+    private final String FILTER_BY_MULTIPLE_IMAGES = "multiple_images";
+    private final String FILTER_BY_NOT_IN_TRACKING_SHEET = "not_in_tracking_sheet";
+
     @Value("${spring.profiles.active}")
     private String activeProfile;
 
@@ -66,12 +70,41 @@ public class CardProServiceImpl implements CardProService{
     }
 
     @Override
-    public Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy) {
+    public Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy, String search, String filter) {
+
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
-        return cardProClientRepository.findAllSorted(page).map(client -> {
-            client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
-            return mapper.cardProClientToCardProSheetClientDto(client);
-        });
+
+        if(search.isEmpty() && FILTER_BY_ALL.equals(filter)){
+            return cardProClientRepository.findAllSorted(page).map(client -> {
+                client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
+                return mapper.cardProClientToCardProSheetClientDto(client);
+            });
+        }
+        else{
+            return fetchFilteredResult(page, search, filter).map(mapper::cardProClientToCardProSheetClientDto);
+        }
+    }
+
+    public Page<CardProClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
+
+        log.info("Filtering Data");
+
+        if(!searchParam.isEmpty()){
+            return switch (filterParam) {
+                case FILTER_BY_ALL -> cardProClientRepository.searchClients(searchParam, page);
+                case FILTER_BY_MULTIPLE_IMAGES -> cardProClientRepository.searchClientsWithMultipleImages(searchParam, page);
+                case FILTER_BY_NOT_IN_TRACKING_SHEET -> cardProClientRepository.searchClientsNotInTrackingSheet(searchParam, page);
+                default -> cardProClientRepository.findAllSorted(page);
+            };
+        }
+        else{
+            return switch (filterParam) {
+                case FILTER_BY_MULTIPLE_IMAGES -> cardProClientRepository.findAllClientsWithMultipleImages(page);
+                case FILTER_BY_NOT_IN_TRACKING_SHEET -> cardProClientRepository.findAllClientsNotInTrackingSheet(page);
+                default -> cardProClientRepository.findAllSorted(page);
+            };
+        }
+
     }
 
     public String encodeAttachmentFilePath(String filePath){
