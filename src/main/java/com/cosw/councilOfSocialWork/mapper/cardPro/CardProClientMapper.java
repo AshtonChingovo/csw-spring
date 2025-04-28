@@ -16,6 +16,7 @@ public interface CardProClientMapper {
     CardProSheetClientDto cardProClientToCardProSheetClientDto(CardProClient cardProClient);
 
     @Mapping(target = "cardProClientId", source = "cardProClient.id")
+    @Mapping(target = "email", source = "cardProClient.email")
     ImageDto imageToImageDto(Image image);
 
 }

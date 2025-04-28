@@ -14,6 +14,7 @@ import com.cosw.councilOfSocialWork.exception.PictureCannotBeDeletedException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.images.ImageMapper;
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.DataStoreCredentialRefreshListener;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
@@ -94,13 +95,16 @@ public class ForwardedEmailProcessingService {
     }
 
     public static Credential getEmailServerCredentials_Test(final HttpTransport HTTP_TRANSPORT) throws IOException {
+
+        FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
         InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
+                .setDataStoreFactory(dataStoreFactory)
                 .setAccessType("offline")
+                .addRefreshListener(new DataStoreCredentialRefreshListener("user", dataStoreFactory))
                 .build();
 
         Credential credential = flow.loadCredential("user");
@@ -345,7 +349,7 @@ public class ForwardedEmailProcessingService {
             }
         }
 
-        log.info("Done");
+        log.info("Image Processing Done");
 
 /*        log.info("Total Messages: {}", messages.size());
         log.info("Total +ve email processed: {}", emailCounter);

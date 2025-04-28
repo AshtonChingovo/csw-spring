@@ -10,6 +10,7 @@ import java.util.UUID;
 public class ImageDto{
     Long id;
     UUID cardProClientId;
+    String email;
     String attachmentFileName;
     String attachmentPath;
     String croppedPath;

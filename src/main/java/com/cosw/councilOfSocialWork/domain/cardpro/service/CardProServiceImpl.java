@@ -87,8 +87,6 @@ public class CardProServiceImpl implements CardProService{
 
     public Page<CardProClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
 
-        log.info("Filtering Data");
-
         if(!searchParam.isEmpty()){
             return switch (filterParam) {
                 case FILTER_BY_ALL -> cardProClientRepository.searchClients(searchParam, page);

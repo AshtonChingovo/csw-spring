@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 public interface ImageMapper {
 
     @Mapping(target = "cardProClientId", source = "cardProClient.id")
+    @Mapping(target = "email", source = "cardProClient.email")
     ImageDto imageToImageDto(Image image);
 
 }
