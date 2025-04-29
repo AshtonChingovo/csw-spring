@@ -60,6 +60,26 @@ public class ExceptionHandlerController extends ResponseEntityExceptionHandler {
         return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
     }
 
+    @ExceptionHandler(PictureFileException.class)
+    public ResponseEntity<Object> handlePictureFileException(PictureFileException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ProcessingFileException.class)
+    public ResponseEntity<Object> handleCardProExcelFileException(ProcessingFileException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ZipFileException.class)
+    public ResponseEntity<Object> handleZipFileException(RuntimeException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
     @Override
     protected @NonNull ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, @NonNull HttpHeaders headers,
                                                                            @NonNull HttpStatusCode status, @NonNull WebRequest webRequest) {

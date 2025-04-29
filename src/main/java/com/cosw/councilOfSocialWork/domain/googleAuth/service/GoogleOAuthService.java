@@ -1,6 +1,7 @@
 package com.cosw.councilOfSocialWork.domain.googleAuth.service;
 
 import com.cosw.councilOfSocialWork.domain.googleAuth.dto.TokenResponseDTO;
+import com.cosw.councilOfSocialWork.exception.GoogleOAuthException;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
@@ -67,12 +68,13 @@ public class GoogleOAuthService {
                     .redirectUrl("Success")
                     .build();
         }
+         catch (GeneralSecurityException e) {
+            log.info("ERROR: creating/loading Credential {}", e.toString());
+            throw new GoogleOAuthException("Failed to authenticate with email account");
+        }
         catch (IOException io){
-            log.info("ERROR: checking current token IOException");
-            throw new RuntimeException();
-        } catch (GeneralSecurityException e) {
-            log.info("ERROR: checking current token GeneralSecurityException");
-            throw new RuntimeException(e);
+            log.info("ERROR: creating/loading/requesting new auth with GoogleAuth {}", io.toString());
+            throw new GoogleOAuthException("Failed to find Google Token");
         }
 
     }
@@ -97,8 +99,8 @@ public class GoogleOAuthService {
                 return false;
         }
         catch (Exception e) {
-            log.info("ERROR: Token not SAVED");
-            return false;
+            log.info("ERROR: GoogleAuthorizationCodeFlow getting token {}", e.toString());
+            throw new GoogleOAuthException("Failed to authenticate with email account");
         }
     }
 

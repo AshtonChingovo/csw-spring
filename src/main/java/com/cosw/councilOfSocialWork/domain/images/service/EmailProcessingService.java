@@ -98,6 +98,7 @@ public class EmailProcessingService {
             // Move to the next page
             nextPageToken = response.getNextPageToken();
 
+            // pause to allow pagination retrieval to run smoothly
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -214,9 +215,8 @@ public class EmailProcessingService {
                     // log.info("Client Email No Attachment:: {} - {}", emailsNoAttachmentCounter, clientEmailAddress);
                 }
             } catch (IOException e) {
-                log.info("ERROR Client Email :: {}", clientEmailAddress);
+                log.info("ERROR Client Email: {} <-> {}", clientEmailAddress, e.toString());
                 ++emailCounter;
-                // throw new RuntimeException(e);
             }
 
 /*
@@ -415,14 +415,13 @@ public class EmailProcessingService {
                 outputStream.write(fileData);
             }
             catch (Exception e){
-                log.error("Error {}", e.getMessage());
+                log.error("ERROR creating image extracted from email {} <-> {}", client.getEmail(),  e.getMessage());
                 return "";
             }
 
             return file.getAbsolutePath();
-        }
 
-        log.error("ERROR downloadAttachmentAndReturnNewFilePath() :: {}", client.getEmail());
+        }
 
         return "";
     }
@@ -442,8 +441,7 @@ public class EmailProcessingService {
             return fileName.toString();
 
         } catch (UsernameNotFoundException e) {
-            log.error("Client not found");
-            log.error("ERROR createNewAttachmentFileName() :: {}", client.getEmail());
+            log.error("ERROR Client not found createNewAttachmentFileName() :: {}", client.getEmail());
             return "";
         }
     }

@@ -1,8 +1,8 @@
 package com.cosw.councilOfSocialWork.exception;
 
-public class ZipFileException extends RuntimeException{
+public class ProcessingFileException extends RuntimeException{
 
-    public ZipFileException(final String message){
+    public ProcessingFileException(final String message){
         super(message);
     }
 }

@@ -15,6 +15,7 @@ import java.util.UUID;
 public class ProcessedCardProClientsStats extends BaseModel {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
+    private Integer id;
     private UUID transactionId;
     private Integer totalEmails;
     private Integer processedEmails;

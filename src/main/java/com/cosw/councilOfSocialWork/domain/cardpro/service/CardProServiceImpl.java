@@ -8,7 +8,9 @@ import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepos
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.ProcessedCardProClientsStatsRepository;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.domain.images.service.EmailProcessingService;
+import com.cosw.councilOfSocialWork.exception.PictureFileException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
+import com.cosw.councilOfSocialWork.exception.ZipFileException;
 import com.cosw.councilOfSocialWork.mapper.cardPro.CardProClientMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -150,8 +153,14 @@ public class CardProServiceImpl implements CardProService{
             Path filePath = Paths.get(createdZipFilePath).resolve("Batch " + batchNumber + ".zip");
             resource = new UrlResource(filePath.toUri());
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        }
+        catch (MalformedURLException e) {
+            log.error("Error: creating Zip file {}", e.toString());
+            throw new ZipFileException("Failed to create zip file");
+        }
+        catch (IOException e) {
+            log.error("Error: failed zipping folder {}", e.toString());
+            throw new ZipFileException("");
         }
 
         return resource;
@@ -187,7 +196,8 @@ public class CardProServiceImpl implements CardProService{
                 try {
                     FileUtils.moveFile(FileUtils.getFile(clientImage.getAttachmentPath()), FileUtils.getFile(newFilePath));
                 } catch (IOException e) {
-                    log.error("Error: Images {}", e.toString());
+                    log.error("Error: moving/renaming image files {}", e.toString());
+                    throw new PictureFileException("Failed to move/rename file " + e);
                 }
 
             });
@@ -214,8 +224,8 @@ public class CardProServiceImpl implements CardProService{
             return fileName.toString();
 
         } catch (UsernameNotFoundException e) {
-            log.error("ERROR createNewAttachmentFileName() :: {}", client.getEmail());
-            return "";
+            log.error("ERROR: creating new attachmentFileName() :: {}", client.getEmail());
+            throw new PictureFileException("Failed creating Picture file name");
         }
     }
 
@@ -243,6 +253,7 @@ public class CardProServiceImpl implements CardProService{
         Path zipFile = Paths.get(zipFilePath);
 
         try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+
             Files.walk(sourceDirPath)
                     .filter(path -> !Files.isDirectory(path))
                     .forEach(path -> {
@@ -252,9 +263,14 @@ public class CardProServiceImpl implements CardProService{
                             Files.copy(path, zos);
                             zos.closeEntry();
                         } catch (IOException e) {
-                            System.err.println("Failed to zip file: " + path + " - " + e.getMessage());
+                            log.error("Failed to Zip File");
+                            throw new ZipFileException("Failed to zip CardPro folder");
                         }
                     });
+
+        } catch (Exception e) {
+            log.error("Failed creating Zip File");
+            throw new ZipFileException("Failed to zip CardPro folder");
         }
 
         return zipFilePath;

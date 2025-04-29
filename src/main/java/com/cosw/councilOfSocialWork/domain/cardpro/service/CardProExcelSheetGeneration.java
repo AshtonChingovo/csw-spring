@@ -1,14 +1,13 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
+import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -210,9 +209,6 @@ public class CardProExcelSheetGeneration {
 
         File file = new File(filePath);
 
-        log.info("Expressions {} {}", TEST_ENV.equals(activeProfile), activeProfile);
-        log.info("Cardpro ExcelFile {}", filePath);
-
         // Ensure directory exists
         file.getParentFile().mkdirs();
 
@@ -221,8 +217,8 @@ public class CardProExcelSheetGeneration {
             workbook.write(outputStream);
             workbook.close();
         } catch (IOException e) {
-            log.error("ERROR CardProExcelSheetGeneration createThenSaveFile() {}", e.getMessage());
-            throw new RuntimeException(e);
+            log.error("ERROR creating/saving file {}", e.getMessage());
+            throw new ProcessingFileException("Failed creating/saving CardPro excel file");
         }
 
     }

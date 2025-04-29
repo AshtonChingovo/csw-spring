@@ -3,6 +3,7 @@ package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
 import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -50,9 +51,11 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             return true;
 
         } catch (FileNotFoundException e) {
+            log.error("ERROR file not found exception");
             return false;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.error("ERROR processing tracking sheet file {}", e.toString());
+            throw new ProcessingFileException("Failed to process file");
         }
 
     }
@@ -68,9 +71,11 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             return new FileInputStream(file);
 
         } catch (FileNotFoundException e) {
+            log.error("ERROR file not found exception convertToFileInputStream()");
             return null;
         } catch (IOException e) {
-            return null;
+            log.error("ERROR working on tracking sheet file convertToFileInputStream() {}", e.toString());
+            throw new ProcessingFileException("Failed to process file");
         }
 
     }
@@ -127,7 +132,9 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                 return "FAILED";
             }
         } catch (InterruptedException e) {
-            return "FAILED";
+            log.error("ERROR extractAndSaveUsersFromTrackingSheetExcelFile() {}", e.toString());
+            throw new ProcessingFileException("Failed to process file");
+            // return "FAILED";
         }
 
     }
@@ -160,8 +167,9 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                     .registrationDate(registrationDate)
                     .registrationYear(sheetName)
                     .build();
+
         } catch (IllegalStateException e) {
-            log.error("Sheet {}" + sheetName, row.getRowNum());
+            log.error("ERROR tracking sheet convertRowToClient() {} {} <-> {}", sheetName, row.getRowNum(), e.toString());
             return null;
             // throw new RuntimeException(e);
         }

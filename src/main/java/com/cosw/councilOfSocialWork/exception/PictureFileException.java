@@ -1,8 +1,8 @@
 package com.cosw.councilOfSocialWork.exception;
 
-public class PictureCannotBeDeletedException extends RuntimeException{
+public class PictureFileException extends RuntimeException{
 
-    public PictureCannotBeDeletedException(final String message){
+    public PictureFileException(final String message){
         super(message);
     }
 }

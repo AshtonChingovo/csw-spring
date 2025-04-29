@@ -1,6 +1,7 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.entity;
 
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
+import com.cosw.councilOfSocialWork.domain.transactionHistory.entity.CardProTransaction;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,7 +30,8 @@ public class CardProClient {
     private boolean hasDifferentEmail;
     private boolean hasNoAttachment;
     private String messageId;
-    private UUID transactionId;
+    @ManyToOne()
+    private CardProTransaction transactionId;
     @OneToMany(mappedBy = "cardProClient", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Image> images;
 }

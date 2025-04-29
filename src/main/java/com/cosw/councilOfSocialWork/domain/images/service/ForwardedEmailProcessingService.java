@@ -10,6 +10,9 @@ import com.cosw.councilOfSocialWork.domain.images.entity.Image;
 import com.cosw.councilOfSocialWork.domain.images.repository.ImagesRepository;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.domain.transactionHistory.entity.CardProTransaction;
+import com.cosw.councilOfSocialWork.domain.transactionHistory.repository.CardProTransactionRepository;
+import com.cosw.councilOfSocialWork.exception.GoogleOAuthException;
 import com.cosw.councilOfSocialWork.exception.PictureCannotBeDeletedException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.images.ImageMapper;
@@ -59,6 +62,7 @@ public class ForwardedEmailProcessingService {
     private final CardProClientRepository cardProClientRepository;
     private TrackingSheetRepository trackingSheetRepository;
     private ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository;
+    private CardProTransactionRepository cardProTransactionRepository;
 
     private ImageMapper mapper;
 
@@ -86,11 +90,13 @@ public class ForwardedEmailProcessingService {
             CardProClientRepository cardProClientRepository,
             TrackingSheetRepository trackingSheetRepository,
             ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository,
+            CardProTransactionRepository cardProTransactionRepository,
             ImageMapper mapper) {
         this.imagesRepository = imagesRepository;
         this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
         this.processedCardProClientsStatsRepository = processedCardProClientsStatsRepository;
+        this.cardProTransactionRepository = cardProTransactionRepository;
         this.mapper = mapper;
     }
 
@@ -146,7 +152,7 @@ public class ForwardedEmailProcessingService {
 
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
-        Gmail service = null;
+        Gmail service;
 
         try {
 
@@ -158,8 +164,9 @@ public class ForwardedEmailProcessingService {
                     .build();
 
         } catch (IllegalStateException e) {
-            log.info("ERROR: NULL Google OAuth token");
-            return false;
+            log.info("ERROR: NULL Google OAuth token {}", e.toString());
+            throw new GoogleOAuthException("Failed to Authenticate with gmail mailbox");
+            // return false;
         }
 
         // ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
@@ -185,6 +192,8 @@ public class ForwardedEmailProcessingService {
             // Move to the next page
             nextPageToken = response.getNextPageToken();
 
+            // sleep to allow pagination to progress smoothly
+            // without it some emails are skipped
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -344,7 +353,7 @@ public class ForwardedEmailProcessingService {
 
 
             } catch (IOException e) {
-                log.info("ERROR Client Email :: {}", clientEmailAddress);
+                log.info("ERROR Client Email :: {} <-> {}", clientEmailAddress, e.toString());
                 return false;
             }
         }
@@ -359,7 +368,13 @@ public class ForwardedEmailProcessingService {
         log.info("Total empty payload: {}", emptyPayload);
         log.info("Total empty email: {}", emptyEmail);*/
 
-        ProcessedCardProClientsStats cardProTransaction = processedCardProClientsStatsRepository.save(
+        // create audit cardpro transaction object
+        CardProTransaction cardProTransaction = CardProTransaction.builder()
+                .totalEmails(messages.size())
+                .build();
+
+        // record stats for this transaction
+        processedCardProClientsStatsRepository.save(
                 ProcessedCardProClientsStats.builder()
                         .totalEmails(messages.size())
                         .processedEmails(goodEmailCounter)
@@ -377,12 +392,16 @@ public class ForwardedEmailProcessingService {
         );
 
         // add transaction ids to all records
-        cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction.getTransactionId()));
+        cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction));
 
         cardProClientRepository.deleteAll();
 
+        cardProTransactionRepository.save(cardProTransaction);
+
         cardProClientRepository.saveAll(cardProClientList);
         cardProClientList.clear();
+
+        log.info("Date persisted");
 
         return true;
 
@@ -418,6 +437,7 @@ public class ForwardedEmailProcessingService {
                                     if(emailBody.contains("<"))
                                         email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
                                 } catch (Exception e) {
+                                    log.error("ERROR extracting client email address {}", e.toString());
                                     return email;
                                 }
                             }
@@ -554,14 +574,12 @@ public class ForwardedEmailProcessingService {
                 outputStream.write(fileData);
             }
             catch (Exception e){
-                log.error("Error {}", e.getMessage());
+                log.error("ERROR creating image extracted from email {} <-> {}", client.getEmail(),  e.getMessage());
                 return "";
             }
 
             return file.getAbsolutePath();
         }
-
-        log.error("ERROR downloadAttachmentAndReturnNewFilePath() :: {}", client.getEmail());
 
         return "";
     }
@@ -588,8 +606,7 @@ public class ForwardedEmailProcessingService {
             return fileName.toString();
 
         } catch (UsernameNotFoundException e) {
-            log.error("Client not found");
-            log.error("ERROR createNewAttachmentFileName() :: {}", client.getEmail());
+            log.error("ERROR Client not found createNewAttachmentFileName() :: {}", client.getEmail());
             return "";
         }
     }
