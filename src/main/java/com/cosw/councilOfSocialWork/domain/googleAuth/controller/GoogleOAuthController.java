@@ -35,7 +35,7 @@ public class GoogleOAuthController {
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_MODIFY);
-    private static final String REDIRECT_URI = "https://cswtest.site/api/oauth2/callback";
+    private static final String REDIRECT_URI = "https://cswtest.site/api/v1/oauth2/callback";
 
     public GoogleOAuthController(GoogleOAuthService googleOAuthService) {
         this.googleOAuthService = googleOAuthService;

@@ -77,15 +77,44 @@ public class CardProServiceImpl implements CardProService{
 
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
 
+        Page<CardProClient> cardProClients;
+
         if(search.isEmpty() && FILTER_BY_ALL.equals(filter)){
-            return cardProClientRepository.findAllSorted(page).map(client -> {
-                client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
-                return mapper.cardProClientToCardProSheetClientDto(client);
-            });
+            cardProClients = cardProClientRepository.findAllSorted(page);
         }
         else{
-            return fetchFilteredResult(page, search, filter).map(mapper::cardProClientToCardProSheetClientDto);
+            cardProClients = fetchFilteredResult(page, search, filter);
         }
+
+        return cardProClients.map(client -> {
+            client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
+            return mapper.cardProClientToCardProSheetClientDto(client);
+        });
+    }
+
+    /*
+    * Valid CardPro clients are those with exactly one image with deleted == null OR deleted == false in its Set<Images>
+    * */
+    @Override
+    public Page<CardProSheetClientDto> getValidCardProClients(int pageNumber, int pageSize, String sortBy, String search, String filter) {
+        Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
+
+        Page<CardProClient> cardProClients;
+
+        if(search.isEmpty() && FILTER_BY_ALL.equals(filter))
+            cardProClients = cardProClientRepository.findAllSortedClientsPages(page);
+        else
+            cardProClients = cardProClientRepository.searchValidClients(search, page);
+
+        return cardProClients.map(client -> {
+            client.getImages()
+                    .forEach(image -> {
+                        if(Boolean.FALSE.equals(image.getDeleted()))
+                            client.getImages().remove(image);
+                        image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
+                    });
+            return mapper.cardProClientToCardProSheetClientDto(client);
+        });
     }
 
     public Page<CardProClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
@@ -105,7 +134,6 @@ public class CardProServiceImpl implements CardProService{
                 default -> cardProClientRepository.findAllSorted(page);
             };
         }
-
     }
 
     public String encodeAttachmentFilePath(String filePath){

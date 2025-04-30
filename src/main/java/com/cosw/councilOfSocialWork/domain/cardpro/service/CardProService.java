@@ -9,6 +9,8 @@ public interface CardProService {
 
     Page<CardProSheetClientDto> getCardProClients(int pageNumber, int pageSize, String sortBy, String search, String filter);
 
+    Page<CardProSheetClientDto> getValidCardProClients(int pageNumber, int pageSize, String sortBy, String search, String filter);
+
     boolean generateCardProData();
 
     Resource downloadCardProData(String batchNumber);

@@ -1,7 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.controller;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
-import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProStatsDto;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProService;
 import org.springframework.core.io.Resource;
@@ -23,6 +22,16 @@ public class CardProController {
 
     public CardProController(CardProService cardProService) {
         this.cardProService = cardProService;
+    }
+
+    @GetMapping(path = "/valid")
+    public ResponseEntity<Page<CardProSheetClientDto>> getValidClientsCardProSheet(
+            @RequestParam(defaultValue = "0") Integer pageNumber,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "all") String filter){
+        return new ResponseEntity<>(cardProService.getValidCardProClients(pageNumber, pageSize, sortBy, search, filter), HttpStatus.OK);
     }
 
     @GetMapping(path = "")

@@ -77,7 +77,7 @@ public class ForwardedEmailProcessingService {
     private static final String CREDENTIALS_FILE_PATH_TEST = "/credentials.json";  // Downloaded from Google Cloud Console
     private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
 
-    private static String redirectUri = "https://cswtest.site/api/oauth2/callback";
+    private static String redirectUri = "https://cswtest.site/api/api/v1/oauth2/callback";
 
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
@@ -401,7 +401,7 @@ public class ForwardedEmailProcessingService {
         cardProClientRepository.saveAll(cardProClientList);
         cardProClientList.clear();
 
-        log.info("Date persisted");
+        log.info("Data persisted");
 
         return true;
 

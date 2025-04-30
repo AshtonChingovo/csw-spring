@@ -1,15 +1,9 @@
 package com.cosw.councilOfSocialWork.domain.transactionHistory.controller;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
-import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
-import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProService;
 import com.cosw.councilOfSocialWork.domain.transactionHistory.dto.CardProTransactionDto;
 import com.cosw.councilOfSocialWork.domain.transactionHistory.service.CardProTransactionService;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
