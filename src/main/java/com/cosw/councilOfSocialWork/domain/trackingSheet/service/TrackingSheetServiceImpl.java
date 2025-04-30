@@ -1,5 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
+import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
@@ -20,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +34,10 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
     TrackingSheetClientMapper mapper;
+
+    private final String FILTER_BY_ALL = "all";
+    private final String FILTER_BY_ACTIVE_MEMBERSHIP = "active_membership";
+    private final String FILTER_BY_RENEWAL_DUE = "renewal_due";
 
     public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
@@ -171,14 +177,43 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
         } catch (IllegalStateException e) {
             log.error("ERROR tracking sheet convertRowToClient() {} {} <-> {}", sheetName, row.getRowNum(), e.toString());
             return null;
-            // throw new RuntimeException(e);
         }
     }
 
     @Override
-    public Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy) {
+    public Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy, String search, String filter) {
         Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy).descending());
-        return trackingSheetRepository.findAll(page).map(mapper::trackingSheetClientToTrackingSheetClientDto);
+
+        Page<TrackingSheetClient> trackingSheetClients;
+
+        if(search.isEmpty() && FILTER_BY_ALL.equals(filter))
+            trackingSheetClients = trackingSheetRepository.findAll(page);
+        else
+            trackingSheetClients = fetchFilteredResult(page, search, filter);
+
+        return trackingSheetClients.map(mapper::trackingSheetClientToTrackingSheetClientDto);
+    }
+
+    public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
+
+        String activeYear = String.valueOf(Year.now().getValue());
+
+        if(!searchParam.isEmpty()){
+            return switch (filterParam) {
+                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchParam, page);
+                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.searchClientsByActiveMembership(searchParam, activeYear, page);
+                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.searchClientsByDueRenewal(searchParam, activeYear, page);
+                default -> trackingSheetRepository.findAll(page);
+            };
+        }
+        else{
+            return switch (filterParam) {
+                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchParam, page);
+                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.findClientsByActiveMembership(searchParam, activeYear, page);
+                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.findClientsByDueRenewal(searchParam, activeYear, page);
+                default -> trackingSheetRepository.findAll(page);
+            };
+        }
     }
 
 }

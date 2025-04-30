@@ -1,5 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 
+import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
@@ -49,8 +50,10 @@ public class TrackingSheetController {
     public ResponseEntity<Page<TrackingSheetClientDto>> getTrackingSheet(
             @RequestParam(defaultValue = "0") Integer pageNumber,
             @RequestParam(defaultValue = "10") Integer pageSize,
-            @RequestParam(defaultValue = "registrationYear") String sortBy){
-        return new ResponseEntity<>(trackingSheetService.getTrackingSheet(pageNumber, pageSize, sortBy), HttpStatus.OK);
+            @RequestParam(defaultValue = "registrationYear") String sortBy,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "all") String filter){
+        return new ResponseEntity<>(trackingSheetService.getTrackingSheet(pageNumber, pageSize, sortBy, search, filter), HttpStatus.OK);
     }
 
 }

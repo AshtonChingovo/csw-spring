@@ -9,6 +9,5 @@ public interface TrackingSheetService {
 
     boolean processTrackingSheet(MultipartFile file);
 
-    Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy);
-
+    Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy, String search, String filter);
 }
