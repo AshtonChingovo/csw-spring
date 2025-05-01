@@ -89,7 +89,8 @@ public class CardProServiceImpl implements CardProService{
         }
 
         return cardProClients.map(client -> {
-            client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
+            //client.getImages().forEach(image -> image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath())));
+            client.getImages().forEach(image -> image.setAttachmentPath(image.getAttachmentPath()));
             return mapper.cardProClientToCardProSheetClientDto(client);
         });
     }
@@ -138,13 +139,13 @@ public class CardProServiceImpl implements CardProService{
         }
     }
 
-    public String encodeAttachmentFilePath(String filePath){
+/*    public String encodeAttachmentFilePath(String filePath){
         String encodedFileName;
 
         String baseFilePath = "/api" + File.separator;
         encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
         return baseFilePath + encodedFileName;
-    }
+    }*/
 
     @Override
     public boolean generateCardProData() {

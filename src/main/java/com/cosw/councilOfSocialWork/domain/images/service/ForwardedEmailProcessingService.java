@@ -516,6 +516,7 @@ public class ForwardedEmailProcessingService {
                             Image.builder()
                                     .id(null)
                                     .attachmentPath(filePath)
+                                    .url(encodeAttachmentFilePath(filePath))
                                     .attachmentFileName(fileName)
                                     .build()
                     );
@@ -530,13 +531,20 @@ public class ForwardedEmailProcessingService {
                     Image.builder()
                             .id(null)
                             .attachmentPath(filePath)
+                            .url(encodeAttachmentFilePath(filePath))
                             .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
                             .build()
             );
         }
-
         return images;
+    }
 
+    public String encodeAttachmentFilePath(String filePath){
+        String encodedFileName;
+
+        String baseFilePath = "/api" + File.separator;
+        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
+        return baseFilePath + encodedFileName;
     }
 
     private String downloadAttachmentAndReturnNewFilePath(Gmail service, String messageId, MessagePart part, TrackingSheetClient client) throws IOException {
@@ -631,14 +639,6 @@ public class ForwardedEmailProcessingService {
                     image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
                     return mapper.imageToImageDto(image);
                 });
-    }
-
-    public String encodeAttachmentFilePath(String filePath){
-        String encodedFileName;
-
-        String baseFilePath = "/api" + File.separator;
-        encodedFileName = URLEncoder.encode(filePath.substring(filePath.lastIndexOf(File.separator) + 1), StandardCharsets.UTF_8).replace("+", "%20");
-        return baseFilePath + encodedFileName;
     }
 
     public ImageDto softDeleteImage(ImageDeleteDto imageDeleteDto){

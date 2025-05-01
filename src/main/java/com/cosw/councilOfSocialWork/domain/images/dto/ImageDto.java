@@ -13,6 +13,7 @@ public class ImageDto{
     String email;
     String attachmentFileName;
     String attachmentPath;
+    String url;
     String croppedPath;
     Boolean cropped;
     Boolean deleted;

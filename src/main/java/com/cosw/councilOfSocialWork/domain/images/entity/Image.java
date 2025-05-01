@@ -17,6 +17,7 @@ public class Image extends BaseModel {
     private Long id = null;
     private String attachmentFileName;
     private String attachmentPath;
+    private String url;
     private String croppedPath;
     private Boolean cropped = false;
     private Boolean deleted = false;
