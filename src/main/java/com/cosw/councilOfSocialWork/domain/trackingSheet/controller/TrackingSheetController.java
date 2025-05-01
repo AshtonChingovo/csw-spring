@@ -3,6 +3,7 @@ package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +55,11 @@ public class TrackingSheetController {
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "all") String filter){
         return new ResponseEntity<>(trackingSheetService.getTrackingSheet(pageNumber, pageSize, sortBy, search, filter), HttpStatus.OK);
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<TrackingSheetStatsDto> getTrackingSheetStats(){
+        return new ResponseEntity<>(trackingSheetService.getTrackingSheetStats(), HttpStatus.OK);
     }
 
 }

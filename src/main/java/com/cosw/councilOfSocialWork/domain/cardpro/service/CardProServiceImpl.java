@@ -104,13 +104,34 @@ public class CardProServiceImpl implements CardProService{
         if(search.isEmpty() && FILTER_BY_ALL.equals(filter))
             cardProClients = cardProClientRepository.findAllSortedClientsPages(page);
         else
-            cardProClients = cardProClientRepository.searchValidClients(search, page);
+            cardProClients = fetchFilteredResult(page, search, filter);
+
+        cardProClients.forEach(client -> {
+
+            client.getImages().forEach( image -> {
+                log.info("processing valid images");
+
+                if(Boolean.FALSE.equals(image.getDeleted())){
+                    client.getImages().remove(image);
+                    log.info("Removed Image");
+                }
+                image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
+            });
+        });
 
         return cardProClients.map(client -> {
             client.getImages()
                     .forEach(image -> {
-                        if(Boolean.FALSE.equals(image.getDeleted()))
+
+                        log.info("processing valid images");
+
+                        if(client.getName().equals("Precious"))
+                            log.info("Removed Image {} {}", client.getName(), Boolean.FALSE.equals(image.getDeleted()));
+
+                        if(Boolean.FALSE.equals(image.getDeleted())){
                             client.getImages().remove(image);
+                            log.info("Removed Image");
+                        }
                         image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
                     });
             return mapper.cardProClientToCardProSheetClientDto(client);

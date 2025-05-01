@@ -1,10 +1,13 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetStats;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetStatsRepository;
 import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
+import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -27,20 +30,24 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
+    TrackingSheetStatsRepository trackingSheetStatsRepository;
     TrackingSheetClientMapper mapper;
 
     private final String FILTER_BY_ALL = "all";
     private final String FILTER_BY_ACTIVE_MEMBERSHIP = "active_membership";
     private final String FILTER_BY_RENEWAL_DUE = "renewal_due";
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetClientMapper mapper) {
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
+        this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.mapper = mapper;
     }
 
@@ -131,6 +138,14 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                 // save client list
                 trackingSheetRepository.saveAll(clientList);
 
+                // save stats record
+                trackingSheetStatsRepository.deleteAll();
+                trackingSheetStatsRepository.save(
+                        TrackingSheetStats.builder()
+                                .totalClients(countUniqueEmails(clientList))
+                                .build()
+                );
+
                 log.info("DONE");
 
                 return "COMPLETED";
@@ -143,6 +158,19 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             // return "FAILED";
         }
 
+    }
+
+    public static int countUniqueEmails(List<TrackingSheetClient> clientList) {
+        return clientList.stream()
+                .filter(client -> client.getEmail() != null) // filter out null emails
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                TrackingSheetClient::getEmail,  // key: email
+                                Function.identity(),            // value: original object
+                                (existing, replacement) -> existing // if duplicates, keep the first one
+                        ),
+                        map -> new ArrayList<>(map.values())
+                )).size();
     }
 
     public TrackingSheetClient convertRowToClient(Row row, String sheetName) {
@@ -192,6 +220,14 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             trackingSheetClients = fetchFilteredResult(page, search, filter);
 
         return trackingSheetClients.map(mapper::trackingSheetClientToTrackingSheetClientDto);
+    }
+
+    @Override
+    public TrackingSheetStatsDto getTrackingSheetStats() {
+        return trackingSheetStatsRepository
+                .findFirstBy()
+                .map(mapper::trackingSheetStatsToTrackingSheetStatsDto)
+                .orElseThrow(() -> new ResourceNotFoundException("Could not find any stats"));
     }
 
     public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
