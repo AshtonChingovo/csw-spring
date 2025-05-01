@@ -62,4 +62,9 @@ public class TrackingSheetController {
         return new ResponseEntity<>(trackingSheetService.getTrackingSheetStats(), HttpStatus.OK);
     }
 
+    @GetMapping("/renewals")
+    public ResponseEntity<?> processTrackingSheet(){
+        return new ResponseEntity<>(trackingSheetService.processTrackingSheet(), HttpStatus.OK);
+    }
+
 }

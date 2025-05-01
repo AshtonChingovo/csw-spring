@@ -36,6 +36,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -106,36 +108,15 @@ public class CardProServiceImpl implements CardProService{
         else
             cardProClients = fetchFilteredResult(page, search, filter);
 
+        // remove invalid pictures i.e pictures marked as deleted
         cardProClients.forEach(client -> {
-
-            client.getImages().forEach( image -> {
-                log.info("processing valid images");
-
-                if(Boolean.FALSE.equals(image.getDeleted())){
-                    client.getImages().remove(image);
-                    log.info("Removed Image");
-                }
-                image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
-            });
+            Set<Image> filteredImages = client.getImages().stream()
+                    .filter(img -> Boolean.FALSE.equals(img.getDeleted()) || img.getDeleted() == null) // only keep non-deleted images
+                    .collect(Collectors.toSet());
+            client.setImages(filteredImages);
         });
 
-        return cardProClients.map(client -> {
-            client.getImages()
-                    .forEach(image -> {
-
-                        log.info("processing valid images");
-
-                        if(client.getName().equals("Precious"))
-                            log.info("Removed Image {} {}", client.getName(), Boolean.FALSE.equals(image.getDeleted()));
-
-                        if(Boolean.FALSE.equals(image.getDeleted())){
-                            client.getImages().remove(image);
-                            log.info("Removed Image");
-                        }
-                        image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
-                    });
-            return mapper.cardProClientToCardProSheetClientDto(client);
-        });
+        return cardProClients.map(mapper::cardProClientToCardProSheetClientDto);
     }
 
     public Page<CardProClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
@@ -225,7 +206,7 @@ public class CardProServiceImpl implements CardProService{
         String baseFilePath = "";
 
         if(TEST_ENV.equals(activeProfile))
-            baseFilePath =  "csw_files" + File.separator + "cardpro_files" + File.separator;
+            baseFilePath =  "csw_files" + File.separator + "cardpro_files" + File.separator + "images" + File.separator;
         else
             baseFilePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator;
 

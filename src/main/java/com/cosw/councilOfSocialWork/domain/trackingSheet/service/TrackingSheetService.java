@@ -14,4 +14,6 @@ public interface TrackingSheetService {
     Page<TrackingSheetClientDto> getTrackingSheet(int pageNumber, int pageSize, String sortBy, String search, String filter);
 
     TrackingSheetStatsDto getTrackingSheetStats();
+
+    boolean processTrackingSheet();
 }

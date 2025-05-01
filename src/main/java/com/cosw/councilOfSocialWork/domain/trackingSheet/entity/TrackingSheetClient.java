@@ -29,5 +29,6 @@ public class TrackingSheetClient extends BaseModel {
     private String phoneNumber;
     private String registrationDate;
     private String registrationYear;
+    private String membershipStatus;
 
 }

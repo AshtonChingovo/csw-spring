@@ -235,23 +235,28 @@ public class ForwardedEmailProcessingService {
 
             var clientEmailAddress = extractClientEmailAddress(email);
 
+            // log.info("L1 extractEmail {}", clientEmailAddress);
+
             if(clientEmailAddress.isEmpty()){
                 ++emptyEmail;
                 continue;
             }
 
+            // log.info("L2 emptyEmail {}", clientEmailAddress);
+
             if("csw.identificationcards@gmail.com".equals(clientEmailAddress)){
+                // log.info("L2-1 csw.identification {}", clientEmailAddress);
                 ++fromCSW;
                 continue;
             }
+
+            // log.info("L3 csw.identification pass {}", clientEmailAddress);
 
             // there are multiple records in the tracking sheet with identical email address
             var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
 
             // try & find client via name & surname in the tracking sheet
             if(client.isEmpty()){
-
-                ++notInTrackingSheetCounter;
 
                 var clientName = extractClientNameFromAddress(email).trim();
 
@@ -260,6 +265,7 @@ public class ForwardedEmailProcessingService {
 
                 var lastIndexOfSpaceChar = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
 
+                // client has name & surname
                 if(clientName.lastIndexOf(" ") > -1){
                     name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
                     surname = extractClientNameFromAddress(email).substring(clientName.lastIndexOf(" ")).trim();
@@ -270,9 +276,7 @@ public class ForwardedEmailProcessingService {
                     surname = "";
                 }
 
-                // log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
-
-                // find if a client exits with extracted name & surname since email is not on Tracking Sheet
+                // find if a client exists with extracted name & surname since email is not in Tracking Sheet
                 if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
 
                     client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
@@ -281,16 +285,15 @@ public class ForwardedEmailProcessingService {
                     hasDifferentEmailList.add(clientEmailAddress);
 
                     ++hasDifferentEmailCounter;
+
+                    // log.info("L4 dif email {}", clientEmailAddress);
+
                 }
                 else{
 
-                    notInTrackingSheetEmailList.add(clientEmailAddress);
-
                     ++notInTrackingSheetCounter;
 
-                    // if name cannot be extracted continue
-                    if(name.isEmpty() || surname.isEmpty())
-                        continue;
+                    notInTrackingSheetEmailList.add(clientEmailAddress);
 
                     var clientObj = CardProClient.builder()
                             .id(null)
@@ -309,12 +312,18 @@ public class ForwardedEmailProcessingService {
 
                     cardProClientList.add(clientObj);
 
+                    // log.info("L5 not in T.S {}", clientEmailAddress);
+
                     continue;
                 }
             }
 
+            // log.info("L6 client found {}", clientEmailAddress);
+
             try {
                 var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
+
+                // log.info("L6-1 attachmentsSet size {}", attachmentsSet.size());
 
                 var clientObj = CardProClient.builder()
                         .id(null)
@@ -329,9 +338,9 @@ public class ForwardedEmailProcessingService {
                         .messageId(message.getId())
                         .build();
 
-                attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
-
                 if(!attachmentsSet.isEmpty()){
+
+                    attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
 
                     ++goodEmailCounter;
 
@@ -340,6 +349,8 @@ public class ForwardedEmailProcessingService {
 
                 }
                 else{
+
+                    // log.info("L6-2 attachmentsSet size {}", attachmentsSet.size());
 
                     emptyPayloadEmailsList.add(clientEmailAddress);
 
@@ -350,7 +361,6 @@ public class ForwardedEmailProcessingService {
                 }
 
                 cardProClientList.add(clientObj);
-
 
             } catch (IOException e) {
                 log.info("ERROR Client Email :: {} <-> {}", clientEmailAddress, e.toString());
@@ -496,7 +506,8 @@ public class ForwardedEmailProcessingService {
 
         if (part.getParts() != null) {
             for (MessagePart subPart : part.getParts()) {
-                if (subPart.getFilename() != null && !subPart.getFilename().isEmpty() && (subPart.getFilename().contains("jpeg") || subPart.getFilename().contains("png") || subPart.getFilename().contains("jpg"))) {
+
+                if (subPart.getFilename() != null && !subPart.getFilename().isEmpty() && (subPart.getFilename().contains("jpeg") || subPart.getFilename().contains("png") || subPart.getFilename().contains("jpg") || subPart.getFilename().contains("heic") || subPart.getFilename().contains("heif"))) {
 
                     var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, subPart, client);
                     var fileName = filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf("."));
@@ -511,9 +522,10 @@ public class ForwardedEmailProcessingService {
                 }
             }
         }
-        else if (part.getBody() != null && part.getFilename() != null && !part.getFilename().isEmpty() && (part.getFilename().contains("jpeg") || part.getFilename().contains("png") || part.getFilename().contains("jpg"))) {
+        else if (part.getBody() != null && part.getFilename() != null && !part.getFilename().isEmpty() && (part.getFilename().contains("jpeg") || part.getFilename().contains("png") || part.getFilename().contains("jpg") || part.getFilename().contains("heic") || part.getFilename().contains("heif"))) {
 
             var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, part, client);
+
             images.add(
                     Image.builder()
                             .id(null)

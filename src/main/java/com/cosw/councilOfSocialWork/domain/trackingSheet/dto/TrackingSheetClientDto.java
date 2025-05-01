@@ -8,5 +8,6 @@ public record TrackingSheetClientDto(
         String email,
         String phoneNumber,
         String registrationDate,
-        String registrationYear
+        String registrationYear,
+        String membershipStatus
 ){}

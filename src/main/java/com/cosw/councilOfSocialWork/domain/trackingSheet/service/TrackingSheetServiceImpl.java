@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
+    TrackingSheetProcessingService trackingSheetProcessingService;
     TrackingSheetStatsRepository trackingSheetStatsRepository;
     TrackingSheetClientMapper mapper;
 
@@ -45,8 +46,13 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     private final String FILTER_BY_ACTIVE_MEMBERSHIP = "active_membership";
     private final String FILTER_BY_RENEWAL_DUE = "renewal_due";
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
+    // default membership
+    private String MEMBERSHIP_DUE_RENEWAL = "renewal_due";
+
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetProcessingService trackingSheetProcessingService,
+                                    TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
+        this.trackingSheetProcessingService = trackingSheetProcessingService;
         this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.mapper = mapper;
     }
@@ -200,6 +206,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                     .phoneNumber(phoneNumber)
                     .registrationDate(registrationDate)
                     .registrationYear(sheetName)
+                    .membershipStatus(MEMBERSHIP_DUE_RENEWAL)
                     .build();
 
         } catch (IllegalStateException e) {
@@ -230,6 +237,11 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                 .orElseThrow(() -> new ResourceNotFoundException("Could not find any stats"));
     }
 
+    @Override
+    public boolean processTrackingSheet() {
+        return trackingSheetProcessingService.processTrackingSheet();
+    }
+
     public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
 
         String activeYear = String.valueOf(Year.now().getValue());
@@ -245,8 +257,8 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
         else{
             return switch (filterParam) {
                 case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchParam, page);
-                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.findClientsByActiveMembership(searchParam, activeYear, page);
-                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.findClientsByDueRenewal(searchParam, activeYear, page);
+                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.findClientsByActiveMembership(activeYear, page);
+                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.findClientsByDueRenewal(MEMBERSHIP_DUE_RENEWAL, activeYear, page);
                 default -> trackingSheetRepository.findAll(page);
             };
         }
