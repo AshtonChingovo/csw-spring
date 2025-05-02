@@ -67,4 +67,9 @@ public class TrackingSheetController {
         return new ResponseEntity<>(trackingSheetService.processTrackingSheet(), HttpStatus.OK);
     }
 
+    @GetMapping("/cells")
+    public ResponseEntity<?> generatePhoneNumberSheet(){
+        return new ResponseEntity<>(trackingSheetService.generatePhoneNumberCardProSheet(), HttpStatus.OK);
+    }
+
 }

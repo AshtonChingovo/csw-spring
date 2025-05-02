@@ -24,6 +24,9 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
 
     List<TrackingSheetClient> findByRegistrationYear(String registrationYear);
 
+    @Query("SELECT c FROM TrackingSheetClient c WHERE c.registrationNumber NOT LIKE %:suffix AND c.registrationYear = :registrationYear")
+    List<TrackingSheetClient> findAllWithRegistrationYear(@Param("suffix") String suffix, @Param("registrationYear") String registrationYear);
+
     @Transactional
     @Modifying
     @Query("UPDATE TrackingSheetClient t SET t.membershipStatus = :membershipStatus WHERE t.email = :email")

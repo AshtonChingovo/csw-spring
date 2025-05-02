@@ -1,5 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
+import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProExcelSheetGeneration;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
@@ -240,6 +241,14 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     @Override
     public boolean processTrackingSheet() {
         return trackingSheetProcessingService.processTrackingSheet();
+    }
+
+    @Override
+    public boolean generatePhoneNumberCardProSheet() {
+
+        new TrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithRegistrationYear("/25", "2025")).createFile();
+
+        return true;
     }
 
     public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){

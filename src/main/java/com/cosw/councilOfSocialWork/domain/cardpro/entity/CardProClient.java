@@ -25,6 +25,7 @@ public class CardProClient {
     private String registrationNumber;
     private String practiceNumber;
     private String email;
+    private String phoneNumber;
     private String dateOfExpiry;
     private boolean notInTrackingSheet;
     private boolean hasDifferentEmail;

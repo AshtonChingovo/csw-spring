@@ -16,4 +16,6 @@ public interface TrackingSheetService {
     TrackingSheetStatsDto getTrackingSheetStats();
 
     boolean processTrackingSheet();
+
+    boolean generatePhoneNumberCardProSheet();
 }

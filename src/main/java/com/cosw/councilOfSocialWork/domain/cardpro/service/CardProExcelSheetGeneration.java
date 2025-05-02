@@ -26,6 +26,7 @@ public class CardProExcelSheetGeneration {
 
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
+    private static String FEATURE_ENV = "feature";
 
     private String activeProfile;
 
@@ -53,6 +54,7 @@ public class CardProExcelSheetGeneration {
         headerStyle.setFont(font);
 
         setUpHeaders(sheet);
+
         createRows(sheet);
 
         // style header row
@@ -68,15 +70,10 @@ public class CardProExcelSheetGeneration {
         Row header = sheet.createRow(0);
 
         header.createCell(0).setCellValue("PROFESSION");
-
         header.createCell(1).setCellValue("NAME");
-
         header.createCell(2).setCellValue("REG NO");
-
         header.createCell(3).setCellValue("PRAC NO");
-
         header.createCell(4).setCellValue("DATE OF EXPIRY");
-
         header.createCell(5).setCellValue("PHOTO NAME");
 
     }
