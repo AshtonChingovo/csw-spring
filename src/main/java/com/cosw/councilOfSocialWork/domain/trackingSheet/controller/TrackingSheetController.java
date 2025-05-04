@@ -1,9 +1,10 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.dto.CardProSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.GoogleTrackingSheetRenewalDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.service.GoogleSheetService;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping(path = "api/v1/tracking-sheet")
 public class TrackingSheetController {
 
+    GoogleSheetService googleSheetService;
     TrackingSheetService trackingSheetService;
     GoogleOAuthService googleOAuthService;
 
@@ -28,7 +30,8 @@ public class TrackingSheetController {
     @Value("${spring.profiles.active}")
     private String activeProfile;
 
-    public TrackingSheetController(TrackingSheetService trackingSheetService, GoogleOAuthService googleOAuthService) {
+    public TrackingSheetController(GoogleSheetService googleSheetService, TrackingSheetService trackingSheetService, GoogleOAuthService googleOAuthService) {
+        this.googleSheetService = googleSheetService;
         this.trackingSheetService = trackingSheetService;
         this.googleOAuthService = googleOAuthService;
     }
@@ -38,7 +41,7 @@ public class TrackingSheetController {
 
         // check if OAuth token is there & valid first
         if(activeProfile.equals(TEST_ENV)){
-            var authTokenCheck = googleOAuthService.checkToken();
+            var authTokenCheck = googleOAuthService.checkTokenExistsOrReturnNewOAuthUrl();
             if(!authTokenCheck.getRedirectUrl().equals("Success"))
                 return new ResponseEntity<>(authTokenCheck, HttpStatus.OK);
         }
@@ -65,6 +68,11 @@ public class TrackingSheetController {
     @GetMapping("/renewals")
     public ResponseEntity<?> processTrackingSheet(){
         return new ResponseEntity<>(trackingSheetService.processTrackingSheet(), HttpStatus.OK);
+    }
+
+    @PostMapping("/renewals/renew")
+    public ResponseEntity<?> renewClient(@RequestBody GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
+        return new ResponseEntity<>(googleSheetService.renewClientInGoogleTrackingSheet(googleTrackingSheetRenewalDto), HttpStatus.OK);
     }
 
     @GetMapping("/cells")

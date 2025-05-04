@@ -1,7 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.googleAuth.service;
 
 import com.cosw.councilOfSocialWork.domain.googleAuth.dto.TokenResponseDTO;
-import com.cosw.councilOfSocialWork.domain.images.service.ForwardedEmailProcessingService;
 import com.cosw.councilOfSocialWork.exception.GoogleOAuthException;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.DataStoreCredentialRefreshListener;
@@ -18,7 +17,6 @@ import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -27,7 +25,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -49,9 +46,9 @@ public class GoogleOAuthService {
     private static String DEV_ENV = "dev";
 
     @Value("${spring.profiles.active}")
-    private static String activeProfile;
+    private String activeProfile;
 
-    public TokenResponseDTO checkToken(){
+    public TokenResponseDTO checkTokenExistsOrReturnNewOAuthUrl(){
 
         // skip oauth during test
         if(activeProfile.equals(DEV_ENV))
@@ -70,7 +67,7 @@ public class GoogleOAuthService {
                         .setRedirectUri(REDIRECT_URI)
                         .build();
 
-                // auth URL
+                // send auth URL back to UI
                 return TokenResponseDTO.builder()
                         .redirectUrl(authURL)
                         .build();
@@ -91,7 +88,7 @@ public class GoogleOAuthService {
 
     }
 
-    public boolean getToken(String code){
+    public boolean createAndStoreToken(String code){
 
         try{
 
@@ -105,10 +102,7 @@ public class GoogleOAuthService {
 
             Credential credential = flow.loadCredential("user");
 
-            if(credential != null)
-                return true;
-            else
-                return false;
+            return credential != null;
         }
         catch (Exception e) {
             log.info("ERROR: GoogleAuthorizationCodeFlow getting token {}", e.toString());
@@ -118,50 +112,24 @@ public class GoogleOAuthService {
 
     GoogleAuthorizationCodeFlow getGoogleAuthorizationCodeFlow() throws GeneralSecurityException, IOException {
 
-        HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+        var credentialsFilePath = activeProfile.equals(TEST_ENV) ? CREDENTIALS_FILE_PATH : CREDENTIALS_FILE_PATH_DEV;
 
-        InputStream inputStream = getClass().getResourceAsStream(CREDENTIALS_FILE_PATH);
+        HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+        FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
+        InputStream inputStream = getClass().getResourceAsStream(credentialsFilePath);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
         return new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
-                .build();
-    }
-    
-/*
-    public Credential getGoogleCredentials(){
-
-        try {
-            HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-
-            if(activeProfile.equals(TEST_ENV))
-                return getEmailServerCredentials_Test(HTTP_TRANSPORT);
-            else
-                return getEmailServerCredentials_Dev(HTTP_TRANSPORT);
-
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-
-    }
-
-    public static Credential getEmailServerCredentials_Test(final HttpTransport HTTP_TRANSPORT) throws IOException {
-
-        FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
-        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(dataStoreFactory)
-                .setAccessType("offline")
                 .addRefreshListener(new DataStoreCredentialRefreshListener("user", dataStoreFactory))
                 .build();
+    }
+
+    public Credential getEmailServerCredentials_Test() throws IOException, GeneralSecurityException {
+
+        GoogleAuthorizationCodeFlow flow = getGoogleAuthorizationCodeFlow();
 
         Credential credential = flow.loadCredential("user");
 
@@ -185,18 +153,17 @@ public class GoogleOAuthService {
         return credential;
     }
 
-    public static Credential getEmailServerCredentials_Dev(final HttpTransport HTTP_TRANSPORT) throws IOException {
-        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-    }*/
-
+    public Credential getEmailServerCredentials_Dev() {
+        try {
+            GoogleAuthorizationCodeFlow flow = getGoogleAuthorizationCodeFlow();
+            return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+        } catch (GeneralSecurityException e) {
+            log.info("ERROR: getting credentials {}", e.toString());
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            log.info("ERROR: getting credentials IO/Exception {}", e.toString());
+            throw new RuntimeException(e);
+        }
+    }
 
 }

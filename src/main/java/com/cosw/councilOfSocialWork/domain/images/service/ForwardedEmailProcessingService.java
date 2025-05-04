@@ -4,6 +4,7 @@ import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClientsStats;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.ProcessedCardProClientsStatsRepository;
+import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDeleteDto;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
@@ -64,6 +65,7 @@ public class ForwardedEmailProcessingService {
     private TrackingSheetRepository trackingSheetRepository;
     private ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository;
     private CardProTransactionRepository cardProTransactionRepository;
+    private GoogleOAuthService googleOAuthService;
 
     private ImageMapper mapper;
 
@@ -92,12 +94,14 @@ public class ForwardedEmailProcessingService {
             TrackingSheetRepository trackingSheetRepository,
             ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository,
             CardProTransactionRepository cardProTransactionRepository,
+            GoogleOAuthService googleOAuthService,
             ImageMapper mapper) {
         this.imagesRepository = imagesRepository;
         this.cardProClientRepository = cardProClientRepository;
         this.trackingSheetRepository = trackingSheetRepository;
         this.processedCardProClientsStatsRepository = processedCardProClientsStatsRepository;
         this.cardProTransactionRepository = cardProTransactionRepository;
+        this.googleOAuthService = googleOAuthService;
         this.mapper = mapper;
     }
 
@@ -157,7 +161,7 @@ public class ForwardedEmailProcessingService {
 
         try {
 
-            Credential credential = TEST_ENV.equals(activeProfile) ? getEmailServerCredentials_Test(HTTP_TRANSPORT) : getEmailServerCredentials_Dev(HTTP_TRANSPORT);
+            Credential credential = TEST_ENV.equals(activeProfile) ? googleOAuthService.getEmailServerCredentials_Test() : googleOAuthService.getEmailServerCredentials_Dev();
             String applicationName = TEST_ENV.equals(activeProfile) ? APPLICATION_NAME : APPLICATION_NAME_DEV;
 
             service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)

@@ -1,6 +1,9 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.dto;
 
+import java.util.UUID;
+
 public record TrackingSheetClientDto(
+        UUID id,
         String name,
         String surname,
         String registrationNumber,
