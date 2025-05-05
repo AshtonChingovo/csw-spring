@@ -71,7 +71,12 @@ public class ExceptionHandlerController extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(ZipFileException.class)
-    public ResponseEntity<Object> handleZipFileException(RuntimeException ex, @NonNull WebRequest webRequest){
+    public ResponseEntity<Object> handleZipFileException(ZipFileException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(GoogleTrackingSheetException.class)
+    public ResponseEntity<Object> handleGoogleTrackingSheetException(GoogleTrackingSheetException ex, @NonNull WebRequest webRequest){
         return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
     }
 

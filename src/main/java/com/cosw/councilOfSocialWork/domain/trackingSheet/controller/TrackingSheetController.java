@@ -70,8 +70,8 @@ public class TrackingSheetController {
         return new ResponseEntity<>(trackingSheetService.processTrackingSheet(), HttpStatus.OK);
     }
 
-    @PostMapping("/renewals/renew")
-    public ResponseEntity<?> renewClient(@RequestBody GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
+    @PostMapping("/renewals")
+    public ResponseEntity<TrackingSheetClientDto> renewClient(@RequestBody GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
         return new ResponseEntity<>(googleSheetService.renewClientInGoogleTrackingSheet(googleTrackingSheetRenewalDto), HttpStatus.OK);
     }
 

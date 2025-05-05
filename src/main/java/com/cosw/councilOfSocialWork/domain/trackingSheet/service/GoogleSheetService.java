@@ -2,13 +2,18 @@ package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
 import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.GoogleTrackingSheetRenewalDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.exception.GoogleTrackingSheetException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
+import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.AppendValuesResponse;
+import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +30,7 @@ public class GoogleSheetService {
 
     private static final String APPLICATION_NAME = "csw";
     private static final String SPREAD_SHEET_ID = "1X2MRl9ZrU4_XshYs4BZP5-ThVo-rw2oCEP4fYBE-L-c";
+    private final String MEMBERSHIP_ACTIVE = "active";
 
     // google sheet columns
     String NAME_COLUMN = "A";
@@ -36,10 +42,12 @@ public class GoogleSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
     GoogleOAuthService googleOAuthService;
+    TrackingSheetClientMapper mapper;
 
-    public GoogleSheetService(TrackingSheetRepository trackingSheetRepository, GoogleOAuthService googleOAuthService) {
+    public GoogleSheetService(TrackingSheetRepository trackingSheetRepository, GoogleOAuthService googleOAuthService, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
         this.googleOAuthService = googleOAuthService;
+        this.mapper = mapper;
     }
 
     public Sheets getGoogleSheetsService(){
@@ -61,8 +69,9 @@ public class GoogleSheetService {
         }
     }
 
-    public boolean renewClientInGoogleTrackingSheet(GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
+    public TrackingSheetClientDto renewClientInGoogleTrackingSheet(GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
 
+        String clientPracticeNumber;
         var client = trackingSheetRepository
                 .findById(googleTrackingSheetRenewalDto.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Could not find client in Tracking Sheet"));
@@ -89,7 +98,12 @@ public class GoogleSheetService {
                     .values().append(SPREAD_SHEET_ID, "'" + currentYear + "'!" + NAME_COLUMN + ":" + PHONE_NUMBER_COLUMN, body)
                     .setValueInputOption("RAW")
                     .setInsertDataOption("INSERT_ROWS")
+                    .setIncludeValuesInResponse(true)
                     .execute();
+
+            if(result.getUpdates().getUpdatedRange() == null || result.getUpdates().getUpdatedRows() == 0){
+                throw new GoogleTrackingSheetException("Failed to renew client");
+            }
 
             log.info("New row result: {}", result);
 
@@ -98,7 +112,7 @@ public class GoogleSheetService {
             var updatedRow = Integer.valueOf(updatedTableRange.substring(updatedTableRange.lastIndexOf(":") + 2)) + 1;
 
             // append year to the creation of prac number
-            var clientPracticeNumber = updatedRow + "/" + currentYear.substring(2);
+            clientPracticeNumber = updatedRow + "/" + currentYear.substring(2);
 
             ValueRange practiceNumberUpdateBody = new ValueRange()
                     .setValues(Arrays.asList(Arrays.asList(clientPracticeNumber)));
@@ -107,20 +121,31 @@ public class GoogleSheetService {
 
             // update client practice number
             // add new row
-            var practiceUpdateResult = getGoogleSheetsService().spreadsheets().values()
+            UpdateValuesResponse practiceUpdateResult = getGoogleSheetsService().spreadsheets().values()
                     .update(SPREAD_SHEET_ID, "'" + currentYear + "'!" + PRAC_NUMBER_COLUMN + updatedRow, practiceNumberUpdateBody)
                     .setValueInputOption("RAW")
+                    .setIncludeValuesInResponse(true)
                     .execute();
 
+            if(practiceUpdateResult.getUpdatedRange() == null || practiceUpdateResult.getUpdatedRows() == 0){
+                throw new GoogleTrackingSheetException("Failed to update client practice number");
+            }
+
+            // update record in db
+            client.setMembershipStatus(MEMBERSHIP_ACTIVE);
+            client.setPracticeNumber(clientPracticeNumber);
+
+            TrackingSheetClient updatedClient = trackingSheetRepository.save(client);
+
             log.info("Practice update result: {}", practiceUpdateResult);
+
+            return mapper.trackingSheetClientToTrackingSheetClientDto(updatedClient);
 
         } catch (IOException e) {
             log.info("ERROR: writing to google sheet {}", e.toString());
             throw new RuntimeException(e);
         }
 
-
-        return true;
     }
 
 }
