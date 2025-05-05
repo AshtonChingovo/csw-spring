@@ -54,7 +54,7 @@ public class TrackingSheetController {
     public ResponseEntity<Page<TrackingSheetClientDto>> getTrackingSheet(
             @RequestParam(defaultValue = "0") Integer pageNumber,
             @RequestParam(defaultValue = "10") Integer pageSize,
-            @RequestParam(defaultValue = "registrationYear") String sortBy,
+            @RequestParam(defaultValue = "sheetYear") String sortBy,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "all") String filter){
         return new ResponseEntity<>(trackingSheetService.getTrackingSheet(pageNumber, pageSize, sortBy, search, filter), HttpStatus.OK);

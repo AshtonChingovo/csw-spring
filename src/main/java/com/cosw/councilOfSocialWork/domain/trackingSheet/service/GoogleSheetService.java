@@ -4,7 +4,9 @@ import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.GoogleTrackingSheetRenewalDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetStats;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
+import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetStatsRepository;
 import com.cosw.councilOfSocialWork.exception.GoogleTrackingSheetException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
@@ -21,8 +23,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.Arrays;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -41,11 +43,13 @@ public class GoogleSheetService {
     String PHONE_NUMBER_COLUMN = "F";
 
     TrackingSheetRepository trackingSheetRepository;
+    TrackingSheetStatsRepository trackingSheetStatsRepository;
     GoogleOAuthService googleOAuthService;
     TrackingSheetClientMapper mapper;
 
-    public GoogleSheetService(TrackingSheetRepository trackingSheetRepository, GoogleOAuthService googleOAuthService, TrackingSheetClientMapper mapper) {
+    public GoogleSheetService(TrackingSheetRepository trackingSheetRepository, TrackingSheetStatsRepository trackingSheetStatsRepository, GoogleOAuthService googleOAuthService, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
+        this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.googleOAuthService = googleOAuthService;
         this.mapper = mapper;
     }
@@ -105,8 +109,6 @@ public class GoogleSheetService {
                 throw new GoogleTrackingSheetException("Failed to renew client");
             }
 
-            log.info("New row result: {}", result);
-
             // table range format = "A1:J1864" get value of updated row line number
             var updatedTableRange = result.getTableRange();
             var updatedRow = Integer.valueOf(updatedTableRange.substring(updatedTableRange.lastIndexOf(":") + 2)) + 1;
@@ -116,8 +118,6 @@ public class GoogleSheetService {
 
             ValueRange practiceNumberUpdateBody = new ValueRange()
                     .setValues(Arrays.asList(Arrays.asList(clientPracticeNumber)));
-
-            log.info("Practice #: {}", clientPracticeNumber);
 
             // update client practice number
             // add new row
@@ -137,7 +137,8 @@ public class GoogleSheetService {
 
             TrackingSheetClient updatedClient = trackingSheetRepository.save(client);
 
-            log.info("Practice update result: {}", practiceUpdateResult);
+            // update tracking sheet stats
+            updateTrackingSheetStats();
 
             return mapper.trackingSheetClientToTrackingSheetClientDto(updatedClient);
 
@@ -146,6 +147,18 @@ public class GoogleSheetService {
             throw new RuntimeException(e);
         }
 
+    }
+
+    void updateTrackingSheetStats(){
+
+        String activeYear = String.valueOf(Year.now().getValue());
+
+        TrackingSheetStats trackingSheetStats = trackingSheetStatsRepository.findFirstByOrderByIdAsc().orElseThrow(() -> new ResourceNotFoundException("Failed to get T.S stats"));
+
+        long totalActiveMembers = trackingSheetRepository.countBySheetYear(activeYear);
+
+        trackingSheetStats.setTotalRenewed((int) totalActiveMembers);
+        trackingSheetStatsRepository.save(trackingSheetStats);
     }
 
 }

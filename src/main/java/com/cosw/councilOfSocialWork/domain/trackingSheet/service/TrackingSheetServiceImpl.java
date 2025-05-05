@@ -1,6 +1,5 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.service.CardProExcelSheetGeneration;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
@@ -39,7 +38,7 @@ import java.util.stream.Collectors;
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
-    TrackingSheetProcessingService trackingSheetProcessingService;
+    TrackingSheetMembershipStatusProcessingService trackingSheetMembershipStatusProcessingService;
     TrackingSheetStatsRepository trackingSheetStatsRepository;
     TrackingSheetClientMapper mapper;
 
@@ -50,10 +49,10 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     // default membership
     private String MEMBERSHIP_DUE_RENEWAL = "renewal_due";
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetProcessingService trackingSheetProcessingService,
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetMembershipStatusProcessingService trackingSheetMembershipStatusProcessingService,
                                     TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
-        this.trackingSheetProcessingService = trackingSheetProcessingService;
+        this.trackingSheetMembershipStatusProcessingService = trackingSheetMembershipStatusProcessingService;
         this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.mapper = mapper;
     }
@@ -187,7 +186,13 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             var practiceNumber = row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var email = row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getRichStringCellValue());
             var phoneNumber = row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
-            var registrationDate = row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
+            // var sheetYear = row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
+
+            // get the registration year i.e. last two characters of the registrationNumber
+            var registrationYear = "";
+
+            if(registrationNumber.length() >= 4)
+                registrationYear = "20" + registrationNumber.trim().substring(registrationNumber.trim().length() - 2);
 
             if (email.isEmpty())
                 email = "N/A";
@@ -205,8 +210,9 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                     .practiceNumber(practiceNumber)
                     .email(email)
                     .phoneNumber(phoneNumber)
-                    .registrationDate(registrationDate)
-                    .registrationYear(sheetName)
+                    // .registrationDate()
+                    .sheetYear(sheetName)
+                    .registrationYear(registrationYear)
                     .membershipStatus(MEMBERSHIP_DUE_RENEWAL)
                     .build();
 
@@ -233,20 +239,20 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     @Override
     public TrackingSheetStatsDto getTrackingSheetStats() {
         return trackingSheetStatsRepository
-                .findFirstBy()
+                .findFirstByOrderByIdAsc()
                 .map(mapper::trackingSheetStatsToTrackingSheetStatsDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Could not find any stats"));
     }
 
     @Override
     public boolean processTrackingSheet() {
-        return trackingSheetProcessingService.processTrackingSheet();
+        return trackingSheetMembershipStatusProcessingService.processTrackingSheetClientMembershipStatus();
     }
 
     @Override
     public boolean generatePhoneNumberCardProSheet() {
 
-        new TrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithRegistrationYear("/25", "2025")).createFile();
+        new TrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithSheetYear("/25", "2025")).createFile();
 
         return true;
     }

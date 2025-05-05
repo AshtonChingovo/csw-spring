@@ -51,7 +51,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -158,6 +157,7 @@ public class ForwardedEmailProcessingService {
         HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
         Gmail service;
+        ListMessagesResponse response;
 
         try {
 
@@ -183,7 +183,7 @@ public class ForwardedEmailProcessingService {
         // pagination code for gmail
         do {
             // Fetch emails with pagination support
-            ListMessagesResponse response = service.users().messages()
+            response = service.users().messages()
                     .list("me")
                     .setQ("is:unread") // Filter only unread emails
                     .setMaxResults(100L) // Maximum: 500 per request
@@ -223,7 +223,6 @@ public class ForwardedEmailProcessingService {
         var notInTrackingSheetEmailList = new ArrayList<String>();
         var hasDifferentEmailList = new ArrayList<String>();
         var emptyPayloadEmailsList = new ArrayList<String>();
-        var totalEmailWithMultipleImagesList = new ArrayList<String>();
 
         for(Message message : messages) {
 
@@ -240,25 +239,18 @@ public class ForwardedEmailProcessingService {
 
             var clientEmailAddress = extractClientEmailAddress(email);
 
-            // log.info("L1 extractEmail {}", clientEmailAddress);
-
             if(clientEmailAddress.isEmpty()){
                 ++emptyEmail;
                 continue;
             }
 
-            // log.info("L2 emptyEmail {}", clientEmailAddress);
-
             if("csw.identificationcards@gmail.com".equals(clientEmailAddress)){
-                // log.info("L2-1 csw.identification {}", clientEmailAddress);
                 ++fromCSW;
                 continue;
             }
 
-            // log.info("L3 csw.identification pass {}", clientEmailAddress);
-
             // there are multiple records in the tracking sheet with identical email address
-            var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
+            var client = trackingSheetRepository.findFirstByEmailOrderBySheetYearDesc(clientEmailAddress);
 
             // try & find client via name & surname in the tracking sheet
             if(client.isEmpty()){
@@ -282,16 +274,14 @@ public class ForwardedEmailProcessingService {
                 }
 
                 // find if a client exists with extracted name & surname since email is not in Tracking Sheet
-                if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
+                if(trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname).isPresent()){
 
-                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
+                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname);
                     hasDifferentEmail = true;
 
                     hasDifferentEmailList.add(clientEmailAddress);
 
                     ++hasDifferentEmailCounter;
-
-                    // log.info("L4 dif email {}", clientEmailAddress);
 
                 }
                 else{
@@ -308,6 +298,8 @@ public class ForwardedEmailProcessingService {
                             .registrationNumber("N/A")
                             .practiceNumber("N/A")
                             .profession("N/A")
+                            .registrationYear("N/A")
+                            .sheetYear("N/A")
                             .dateOfExpiry("N/A")
                             .hasDifferentEmail(false)
                             .notInTrackingSheet(true)
@@ -317,18 +309,12 @@ public class ForwardedEmailProcessingService {
 
                     cardProClientList.add(clientObj);
 
-                    // log.info("L5 not in T.S {}", clientEmailAddress);
-
                     continue;
                 }
             }
 
-            // log.info("L6 client found {}", clientEmailAddress);
-
             try {
                 var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
-
-                // log.info("L6-1 attachmentsSet size {}", attachmentsSet.size());
 
                 var clientObj = CardProClient.builder()
                         .id(null)
@@ -337,6 +323,8 @@ public class ForwardedEmailProcessingService {
                         .surname(client.get().getSurname())
                         .registrationNumber(client.get().getRegistrationNumber())
                         .practiceNumber(client.get().getPracticeNumber())
+                        .registrationYear(client.get().getRegistrationYear())
+                        .sheetYear(client.get().getSheetYear())
                         .profession("Registered Social Worker")
                         .dateOfExpiry("31/12/" + LocalDate.now().getYear())
                         .hasDifferentEmail(hasDifferentEmail)
@@ -354,8 +342,6 @@ public class ForwardedEmailProcessingService {
 
                 }
                 else{
-
-                    // log.info("L6-2 attachmentsSet size {}", attachmentsSet.size());
 
                     emptyPayloadEmailsList.add(clientEmailAddress);
 
@@ -375,23 +361,18 @@ public class ForwardedEmailProcessingService {
 
         log.info("Image Processing Done");
 
-/*        log.info("Total Messages: {}", messages.size());
-        log.info("Total +ve email processed: {}", emailCounter);
-        log.info("Total cardPro records: {}", cardProClientList.size());
-        log.info("Total Not in TS: {}", notInTrackingSheetCounter);
-        log.info("Total No Attachment: {}", emailsNoAttachmentCounter);
-        log.info("Total empty payload: {}", emptyPayload);
-        log.info("Total empty email: {}", emptyEmail);*/
-
         // create audit cardpro transaction object
         CardProTransaction cardProTransaction = CardProTransaction.builder()
                 .totalEmails(messages.size())
                 .build();
 
         // record stats for this transaction
+        var multipleImagesList = cardProClientList.stream().filter(it -> it.getImages().size() > 1).map(CardProClient::getEmail).toList();
+        // remove current stats
+        processedCardProClientsStatsRepository.deleteAll();
         processedCardProClientsStatsRepository.save(
                 ProcessedCardProClientsStats.builder()
-                        .totalEmails(messages.size())
+                        .totalEmails(response.getMessages().size())
                         .processedEmails(goodEmailCounter)
                         .notInTrackingSheet(notInTrackingSheetCounter)
                         .notInTrackingSheetEmailList(notInTrackingSheetEmailList)
@@ -401,20 +382,28 @@ public class ForwardedEmailProcessingService {
                         .emptyEmails(emptyEmail)
                         .emptyPayloadEmails(emptyPayload)
                         .emptyPayloadEmailsList(emptyPayloadEmailsList)
-                        .totalEmailsWithMultipleImages(cardProClientList.stream().filter(it -> it.getImages().size() > 1).collect(Collectors.toSet()).size())
-                        .totalEmailWithMultipleImagesList(cardProClientList.stream().filter(it -> it.getImages().size() > 1).map(it -> it.getEmail()).toList())
+                        .totalEmailsWithMultipleImages(multipleImagesList.size())
+                        .totalEmailWithMultipleImagesList(multipleImagesList)
                         .build()
         );
+
+        log.info("Stats Total Emails: {}", response.getMessages().size());
+        log.info("Stats Multi: {}", multipleImagesList.size());
 
         // add transaction ids to all records
         cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction));
 
+        // clear current data
         cardProClientRepository.deleteAll();
 
+        // save transaction data
         cardProTransactionRepository.save(cardProTransaction);
 
         cardProClientRepository.saveAll(cardProClientList);
         cardProClientList.clear();
+
+        // clear out fields
+        messages.clear();
 
         log.info("Data persisted");
 

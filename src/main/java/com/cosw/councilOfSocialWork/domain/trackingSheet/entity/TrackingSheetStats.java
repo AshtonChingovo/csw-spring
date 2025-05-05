@@ -21,6 +21,6 @@ public class TrackingSheetStats extends BaseModel {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
     private Integer totalClients;
-    private Integer renewal;
+    private Integer totalRenewed;
     private Integer dueRenewal;
 }

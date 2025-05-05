@@ -8,5 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface TrackingSheetStatsRepository extends JpaRepository<TrackingSheetStats, Integer> {
-    Optional<TrackingSheetStats> findFirstBy();
+    Optional<TrackingSheetStats> findFirstByOrderByIdAsc();
 }

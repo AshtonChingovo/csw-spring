@@ -136,7 +136,7 @@ public class EmailProcessingService {
                 continue;
 
             // there are multiple records in the tracking sheet with identical email address
-            var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
+            var client = trackingSheetRepository.findFirstByEmailOrderBySheetYearDesc(clientEmailAddress);
 
             if(client.isEmpty()){
 
@@ -162,8 +162,8 @@ public class EmailProcessingService {
                 // log.info("Client Not In TS:: {} {} - {}", name, surname, trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent());
 
                 // find if a client exits with extracted name & surname since email is not on Tracking Sheet
-                if(trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname).isPresent()){
-                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderByRegistrationYearDesc(name, surname);
+                if(trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname).isPresent()){
+                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname);
                     hasDifferentEmail = true;
                 }
                 else{

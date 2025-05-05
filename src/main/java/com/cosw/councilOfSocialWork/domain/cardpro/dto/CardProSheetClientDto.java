@@ -11,6 +11,8 @@ public record CardProSheetClientDto(
         String surname,
         String registrationNumber,
         String practiceNumber,
+        String registrationYear,
+        String sheetYear,
         String email,
         String dateOfExpiry,
         boolean notInTrackingSheet,

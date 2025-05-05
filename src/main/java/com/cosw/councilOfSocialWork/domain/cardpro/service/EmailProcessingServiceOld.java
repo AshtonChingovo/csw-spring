@@ -98,7 +98,7 @@ public class EmailProcessingServiceOld {
             if(clientEmailAddress.isEmpty())
                 continue;
 
-            var client = trackingSheetRepository.findFirstByEmailOrderByRegistrationYearDesc(clientEmailAddress);
+            var client = trackingSheetRepository.findFirstByEmailOrderBySheetYearDesc(clientEmailAddress);
 
             if(client.isEmpty())
                 continue;

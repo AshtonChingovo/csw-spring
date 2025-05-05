@@ -18,14 +18,16 @@ import java.util.UUID;
 @Repository
 public interface TrackingSheetRepository extends PagingAndSortingRepository<TrackingSheetClient, UUID>, ListCrudRepository<TrackingSheetClient, UUID> {
 
-    Optional<TrackingSheetClient> findFirstByEmailOrderByRegistrationYearDesc(String email);
+    Optional<TrackingSheetClient> findFirstByEmailOrderBySheetYearDesc(String email);
 
-    Optional<TrackingSheetClient> findFirstByNameAndSurnameOrderByRegistrationYearDesc(String name, String surname);
+    Optional<TrackingSheetClient> findFirstByNameAndSurnameOrderBySheetYearDesc(String name, String surname);
 
-    List<TrackingSheetClient> findByRegistrationYear(String registrationYear);
+    List<TrackingSheetClient> findBySheetYear(String sheetYear);
 
-    @Query("SELECT c FROM TrackingSheetClient c WHERE c.registrationNumber NOT LIKE %:suffix AND c.registrationYear = :registrationYear")
-    List<TrackingSheetClient> findAllWithRegistrationYear(@Param("suffix") String suffix, @Param("registrationYear") String registrationYear);
+    long countBySheetYear(String sheetYear);
+
+    @Query("SELECT c FROM TrackingSheetClient c WHERE c.registrationNumber NOT LIKE %:suffix AND c.sheetYear = :sheetYear")
+    List<TrackingSheetClient> findAllWithSheetYear(@Param("suffix") String suffix, @Param("sheetYear") String sheetYear);
 
     @Transactional
     @Modifying
@@ -34,20 +36,20 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
 
     @Query("""
             SELECT t FROM TrackingSheetClient t WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
-               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))""")
+               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) ORDER BY t.sheetYear DESC, t.name ASC""")
     Page<TrackingSheetClient> searchClients(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     @Query("""
-            SELECT DISTINCT t FROM TrackingSheetClient t WHERE registrationYear = :activeYear AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
-               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')))""")
+            SELECT DISTINCT t FROM TrackingSheetClient t WHERE sheetYear = :activeYear AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) ORDER BY t.sheetYear DESC, t.name ASC""")
     Page<TrackingSheetClient> searchClientsByActiveMembership(@Param("searchTerm") String searchTerm, @Param("activeYear") String activeYear, Pageable pageable);
 
     @Query("""
-            SELECT DISTINCT t FROM TrackingSheetClient t WHERE registrationYear <> :activeYear AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
-               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')))""")
+            SELECT DISTINCT t FROM TrackingSheetClient t WHERE sheetYear <> :activeYear AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+               OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) ORDER BY t.sheetYear DESC, t.name ASC""")
     Page<TrackingSheetClient> searchClientsByDueRenewal(@Param("searchTerm") String searchTerm, @Param("activeYear") String activeYear, Pageable pageable);
 
-    @Query("SELECT DISTINCT t FROM TrackingSheetClient t WHERE registrationYear = :activeYear ORDER BY name DESC")
+    @Query("SELECT DISTINCT t FROM TrackingSheetClient t WHERE sheetYear = :activeYear ORDER BY t.sheetYear DESC, t.name ASC")
     Page<TrackingSheetClient> findClientsByActiveMembership(@Param("activeYear") String activeYear, Pageable pageable);
 
     @Query("""
@@ -58,10 +60,10 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
           AND t.id IN (
             SELECT MAX(t2.id)
             FROM TrackingSheetClient t2
-            WHERE t2.registrationYear <> :activeYear
+            WHERE t2.sheetYear <> :activeYear
             GROUP BY t2.email
           )
-        ORDER BY t.registrationYear ASC, t.name ASC
+        ORDER BY t.sheetYear DESC, t.name ASC
         """)
     Page<TrackingSheetClient> findClientsByDueRenewal(@Param("membershipStatus") String membershipStatus, @Param("activeYear") String activeYear, Pageable pageable);
 

@@ -24,6 +24,8 @@ public class CardProClient {
     private String profession;
     private String registrationNumber;
     private String practiceNumber;
+    String registrationYear;
+    String sheetYear;
     private String email;
     private String phoneNumber;
     private String dateOfExpiry;
