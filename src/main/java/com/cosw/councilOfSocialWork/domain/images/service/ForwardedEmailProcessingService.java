@@ -506,14 +506,16 @@ public class ForwardedEmailProcessingService {
                     var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, subPart, client);
                     var fileName = filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf("."));
 
-                    images.add(
-                            Image.builder()
-                                    .id(null)
-                                    .attachmentPath(filePath)
-                                    .url(encodeAttachmentFilePath(filePath))
-                                    .attachmentFileName(fileName)
-                                    .build()
-                    );
+                    if(!filePath.isEmpty() && !fileName.isEmpty()){
+                        images.add(
+                                Image.builder()
+                                        .id(null)
+                                        .attachmentPath(filePath)
+                                        .url(encodeAttachmentFilePath(filePath))
+                                        .attachmentFileName(fileName)
+                                        .build()
+                        );
+                    }
                 }
             }
         }
@@ -521,14 +523,16 @@ public class ForwardedEmailProcessingService {
 
             var filePath = downloadAttachmentAndReturnNewFilePath(service, messageId, part, client);
 
-            images.add(
-                    Image.builder()
-                            .id(null)
-                            .attachmentPath(filePath)
-                            .url(encodeAttachmentFilePath(filePath))
-                            .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
-                            .build()
-            );
+            if(!filePath.isEmpty()){
+                images.add(
+                        Image.builder()
+                                .id(null)
+                                .attachmentPath(filePath)
+                                .url(encodeAttachmentFilePath(filePath))
+                                .attachmentFileName(filePath.substring(filePath.lastIndexOf(File.separator) + 1, filePath.lastIndexOf(".")))
+                                .build()
+                );
+            }
         }
         return images;
     }
@@ -566,9 +570,6 @@ public class ForwardedEmailProcessingService {
             // If the Base64 data contains URL-safe encoding, replace "_" with "/" and "-" with "+"
             String base64 = base64Data.replace('_', '/').replace('-', '+');
 
-            // Decode the data
-            byte[] fileData = Base64.getDecoder().decode(base64);
-
             String userHome = System.getProperty("user.home");
             // String filePath = userHome + File.separator + "media" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "Images" + File.separator + filename;
 
@@ -583,6 +584,12 @@ public class ForwardedEmailProcessingService {
 
             // Ensure directory exists
             file.getParentFile().mkdirs();
+
+            // Decode the data
+            byte[] fileData = Base64.getDecoder().decode(base64);
+
+            log.info("FileName: {}", filename);
+            log.info("FilePath: {}", filePath);
 
             try (FileOutputStream outputStream = new FileOutputStream(file)) {
                 outputStream.write(fileData);

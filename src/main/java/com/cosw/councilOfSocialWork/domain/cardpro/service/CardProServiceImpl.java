@@ -27,11 +27,8 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -213,26 +210,66 @@ public class CardProServiceImpl implements CardProService{
 
         String finalBaseFilePath = baseFilePath;
 
-        cardProClientList.forEach(cardProClient -> {
+        if(deleteImagesInCardProImagesDirectory(finalBaseFilePath)){
+            cardProClientList.forEach(cardProClient -> {
 
-            Optional<Image> image = cardProClient.getImages().stream()
-                    .filter(it -> it.getDeleted() == null || !it.getDeleted())
-                    .findFirst();
+                Optional<Image> image = cardProClient.getImages().stream()
+                        .filter(it -> it.getDeleted() == null || !it.getDeleted())
+                        .findFirst();
 
-            image.ifPresent(clientImage -> {
+                image.ifPresent(clientImage -> {
 
-                var fileName = createNewAttachmentFileName(cardProClient, clientImage);
-                var newFilePath = finalBaseFilePath + fileName;
+                    var fileName = createNewAttachmentFileName(cardProClient, clientImage);
+                    var newFilePath = finalBaseFilePath + fileName;
 
-                try {
-                    FileUtils.moveFile(FileUtils.getFile(clientImage.getAttachmentPath()), FileUtils.getFile(newFilePath));
-                } catch (IOException e) {
-                    log.error("Error: moving/renaming image files {}", e.toString());
-                    throw new PictureFileException("Failed to move/rename file " + e);
+                    try {
+                        FileUtils.copyFile(FileUtils.getFile(clientImage.getAttachmentPath()), FileUtils.getFile(newFilePath));
+                        // FileUtils.moveFile(FileUtils.getFile(clientImage.getAttachmentPath()), FileUtils.getFile(newFilePath));
+                    } catch (IOException e) {
+                        log.error("Error: moving/renaming image files {}", e.toString());
+                        throw new PictureFileException("Failed to move/rename file " + e);
+                    }
+
+                });
+            });
+        }
+        else{
+            log.error("Failed deleting images folder");
+            throw new PictureFileException("Failed to move/rename file ");
+        }
+
+        return true;
+    }
+
+    boolean deleteImagesInCardProImagesDirectory(String folderPath){
+
+        Path path = Paths.get(folderPath);
+
+        if (!Files.exists(path)) {
+            System.out.println("Directory does not exist: " + path);
+            return false;
+        }
+
+        try {
+            Files.walkFileTree(path, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
                 }
 
             });
-        });
+        } catch (IOException e) {
+            log.error("ERROR: deleting current images directory {}", e.toString());
+            return false;
+            //throw new RuntimeException(e);
+        }
 
         return true;
     }
