@@ -43,7 +43,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     TrackingSheetClientMapper mapper;
 
     private final String FILTER_BY_ALL = "all";
-    private final String FILTER_BY_ACTIVE_MEMBERSHIP = "active_membership";
+    private final String FILTER_BY_ACTIVE_MEMBERSHIP = "active";
     private final String FILTER_BY_RENEWAL_DUE = "renewal_due";
 
     // default membership
@@ -182,10 +182,13 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     public TrackingSheetClient convertRowToClient(Row row, String sheetName) {
 
         try {
+            var name = row.getCell(0, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue();
+            var surname = row.getCell(1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue();
             var registrationNumber = row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(2, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var practiceNumber = row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(3, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             var email = row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(4, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getRichStringCellValue());
-            var phoneNumber = row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
+            var phoneNumber = new DataFormatter().formatCellValue(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)).trim();
+            // var phoneNumber = row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(5, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
             // var sheetYear = row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getCellType() == CellType.STRING ? row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue() : String.valueOf(row.getCell(6, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getNumericCellValue());
 
             // get the registration year i.e. last two characters of the registrationNumber
@@ -204,8 +207,8 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                 practiceNumber = "N/A";
 
             return TrackingSheetClient.builder()
-                    .name(row.getCell(0, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue())
-                    .surname(row.getCell(1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).getStringCellValue())
+                    .name(name)
+                    .surname(surname)
                     .registrationNumber(registrationNumber)
                     .practiceNumber(practiceNumber)
                     .email(email)
@@ -259,19 +262,21 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
 
+        // clients on the current year's tracking sheet are active (renewed) clients
         String activeYear = String.valueOf(Year.now().getValue());
+        String searchTerm = searchParam.trim();
 
-        if(!searchParam.isEmpty()){
+        if(!searchTerm.isEmpty()){
             return switch (filterParam) {
-                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchParam, page);
-                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.searchClientsByActiveMembership(searchParam, activeYear, page);
-                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.searchClientsByDueRenewal(searchParam, activeYear, page);
+                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchTerm, page);
+                case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.searchClientsByActiveMembership(searchTerm, activeYear, page);
+                case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.searchClientsByDueRenewal(searchTerm, MEMBERSHIP_DUE_RENEWAL, activeYear, page);
                 default -> trackingSheetRepository.findAll(page);
             };
         }
         else{
             return switch (filterParam) {
-                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchParam, page);
+                case FILTER_BY_ALL -> trackingSheetRepository.searchClients(searchTerm, page);
                 case FILTER_BY_ACTIVE_MEMBERSHIP -> trackingSheetRepository.findClientsByActiveMembership(activeYear, page);
                 case FILTER_BY_RENEWAL_DUE -> trackingSheetRepository.findClientsByDueRenewal(MEMBERSHIP_DUE_RENEWAL, activeYear, page);
                 default -> trackingSheetRepository.findAll(page);

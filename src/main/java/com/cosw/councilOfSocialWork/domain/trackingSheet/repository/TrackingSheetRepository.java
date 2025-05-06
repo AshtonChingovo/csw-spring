@@ -30,7 +30,7 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
     List<TrackingSheetClient> findAllWithSheetYear(@Param("suffix") String suffix, @Param("sheetYear") String sheetYear);
 
     @Transactional
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE TrackingSheetClient t SET t.membershipStatus = :membershipStatus WHERE t.email = :email")
     void updateMembershipStatus(@Param("email") String email, @Param("membershipStatus") String membershipStatus);
 
@@ -45,9 +45,9 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
     Page<TrackingSheetClient> searchClientsByActiveMembership(@Param("searchTerm") String searchTerm, @Param("activeYear") String activeYear, Pageable pageable);
 
     @Query("""
-            SELECT DISTINCT t FROM TrackingSheetClient t WHERE sheetYear <> :activeYear AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+            SELECT DISTINCT t FROM TrackingSheetClient t WHERE t.membershipStatus = :membershipStatus AND (LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
                OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) ORDER BY t.sheetYear DESC, t.name ASC""")
-    Page<TrackingSheetClient> searchClientsByDueRenewal(@Param("searchTerm") String searchTerm, @Param("activeYear") String activeYear, Pageable pageable);
+    Page<TrackingSheetClient> searchClientsByDueRenewal(@Param("searchTerm") String searchTerm, @Param("membershipStatus") String membershipStatus, @Param("activeYear") String activeYear, Pageable pageable);
 
     @Query("SELECT DISTINCT t FROM TrackingSheetClient t WHERE sheetYear = :activeYear ORDER BY t.sheetYear DESC, t.name ASC")
     Page<TrackingSheetClient> findClientsByActiveMembership(@Param("activeYear") String activeYear, Pageable pageable);

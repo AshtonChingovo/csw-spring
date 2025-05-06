@@ -75,7 +75,7 @@ public class GoogleSheetService {
 
     public TrackingSheetClientDto renewClientInGoogleTrackingSheet(GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
 
-        String clientPracticeNumber;
+        String newClientPracticeNumber;
         var client = trackingSheetRepository
                 .findById(googleTrackingSheetRenewalDto.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Could not find client in Tracking Sheet"));
@@ -87,7 +87,8 @@ public class GoogleSheetService {
                                 client.getSurname(),
                                 client.getRegistrationNumber(),
                                 client.getPracticeNumber(),
-                                client.getEmail()
+                                client.getEmail(),
+                                !client.getPhoneNumber().isEmpty() ? client.getPhoneNumber() : ""
                         )
                 ));
 
@@ -114,10 +115,10 @@ public class GoogleSheetService {
             var updatedRow = Integer.valueOf(updatedTableRange.substring(updatedTableRange.lastIndexOf(":") + 2)) + 1;
 
             // append year to the creation of prac number
-            clientPracticeNumber = updatedRow + "/" + currentYear.substring(2);
+            newClientPracticeNumber = updatedRow + "/" + currentYear.substring(2);
 
             ValueRange practiceNumberUpdateBody = new ValueRange()
-                    .setValues(Arrays.asList(Arrays.asList(clientPracticeNumber)));
+                    .setValues(Arrays.asList(Arrays.asList(newClientPracticeNumber)));
 
             // update client practice number
             // add new row
@@ -131,15 +132,20 @@ public class GoogleSheetService {
                 throw new GoogleTrackingSheetException("Failed to update client practice number");
             }
 
-            // update record in db
-            client.setMembershipStatus(MEMBERSHIP_ACTIVE);
-            client.setPracticeNumber(clientPracticeNumber);
+            // update all records with same email in db
+            trackingSheetRepository.updateMembershipStatus(client.getEmail(), MEMBERSHIP_ACTIVE);
 
-            TrackingSheetClient updatedClient = trackingSheetRepository.save(client);
+            // save new active membership current year client i.e. add client into this year's tracking sheet
+            trackingSheetRepository.save(createNewTrackingSheetClient(client, newClientPracticeNumber, currentYear, MEMBERSHIP_ACTIVE));
 
             // update tracking sheet stats
             updateTrackingSheetStats();
 
+            var updatedClient = trackingSheetRepository.findById(client.getId()).orElseThrow(() -> new ResourceNotFoundException("Could find TrackingSheetClient"));
+
+            log.info("UPDATED CLIENT: {}", updatedClient.getMembershipStatus());
+
+            // return updated client
             return mapper.trackingSheetClientToTrackingSheetClientDto(updatedClient);
 
         } catch (IOException e) {
@@ -147,6 +153,22 @@ public class GoogleSheetService {
             throw new RuntimeException(e);
         }
 
+    }
+
+    TrackingSheetClient createNewTrackingSheetClient(TrackingSheetClient client, String practiceNumber, String currentYear, String membershipStatus){
+
+        return TrackingSheetClient.builder()
+                .name(client.getName())
+                .surname(client.getSurname())
+                .registrationNumber(client.getRegistrationNumber())
+                .practiceNumber(practiceNumber)
+                .email(client.getEmail())
+                .phoneNumber(client.getPhoneNumber())
+                .registrationDate(client.getRegistrationDate())
+                .registrationYear(client.getRegistrationYear())
+                .sheetYear(currentYear)
+                .membershipStatus(membershipStatus)
+                .build();
     }
 
     void updateTrackingSheetStats(){

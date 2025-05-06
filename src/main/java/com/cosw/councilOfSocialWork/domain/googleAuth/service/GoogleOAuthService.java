@@ -37,10 +37,7 @@ public class GoogleOAuthService {
     private static final List<String> SCOPES = Arrays.asList(GmailScopes.GMAIL_MODIFY, SheetsScopes.SPREADSHEETS);
     private static final String REDIRECT_URI = "https://cswtest.site/api/api/v1/oauth2/callback";
 
-    private static final String CREDENTIALS_FILE_PATH_TEST = "/credentials.json";  // Downloaded from Google Cloud Console
     private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
-
-    private static String redirectUri = "https://cswtest.site/api/api/v1/oauth2/callback";
 
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
@@ -137,7 +134,7 @@ public class GoogleOAuthService {
 
             // This is the important part: manually initiate auth URL with custom redirect
             String authUrl = flow.newAuthorizationUrl()
-                    .setRedirectUri(redirectUri)
+                    .setRedirectUri(REDIRECT_URI)
                     .build();
 
             log.info("🔐 Please authorize the app by visiting:\n {}", authUrl);
