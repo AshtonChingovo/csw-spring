@@ -80,6 +80,16 @@ public class ExceptionHandlerController extends ResponseEntityExceptionHandler {
         return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
     }
 
+    @ExceptionHandler(EmailsProcessingException.class)
+    public ResponseEntity<Object> handleEmailsProcessingException(EmailsProcessingException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);
+    }
+
+    @ExceptionHandler(GoogleOAuthException.class)
+    public ResponseEntity<Object> handleGoogleOAuthException(GoogleOAuthException ex, @NonNull WebRequest webRequest){
+        return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, UNAUTHORIZED);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex, @NonNull WebRequest webRequest){
         return errorDetailsResponse(ex, ex.getMessage(), Collections.singletonList(ex.getMessage()), webRequest, BAD_REQUEST);

@@ -3,6 +3,7 @@ package com.cosw.councilOfSocialWork.domain.images.controller;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDeleteDto;
 import com.cosw.councilOfSocialWork.domain.images.dto.ImageDto;
 import com.cosw.councilOfSocialWork.domain.images.service.ForwardedEmailProcessingService;
+import com.cosw.councilOfSocialWork.exception.PictureFileException;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,14 +24,8 @@ public class ImagesController {
 
     @GetMapping
     public ResponseEntity<Object> downloadImageAttachments(){
-        try {
-            var processedEmailData = emailProcessingService.createClientListAndDownloadImages();
-            return ResponseEntity.status(processedEmailData ? HttpStatus.CREATED : HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
+        var processedEmailData = emailProcessingService.createClientListAndDownloadImages();
+        return ResponseEntity.status(processedEmailData ? HttpStatus.CREATED : HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 
     @GetMapping("/list")

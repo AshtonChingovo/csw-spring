@@ -48,7 +48,6 @@ public class GoogleOAuthController {
         googleOAuthService.createAndStoreToken(code);
 
         return ResponseEntity.ok("Google authorization successful! Tokens stored.");
-
     }
 
     @GetMapping("/token-check")
@@ -56,19 +55,24 @@ public class GoogleOAuthController {
         return ResponseEntity.ok(googleOAuthService.checkTokenExistsOrReturnNewOAuthUrl());
     }
 
-    GoogleAuthorizationCodeFlow getGoogleAuthorizationCodeFlow() throws GeneralSecurityException, IOException {
-
-        HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-
-        InputStream inputStream = getClass().getResourceAsStream(CREDENTIALS_FILE_PATH);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        return new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-
+    @GetMapping("/auth-url")
+    public ResponseEntity<TokenResponseDTO> getGoogleAuthUrl() throws Exception {
+        return ResponseEntity.ok(googleOAuthService.getGoogleAuthUrl());
     }
+
+//    GoogleAuthorizationCodeFlow getGoogleAuthorizationCodeFlow() throws GeneralSecurityException, IOException {
+//
+//        HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+//
+//        InputStream inputStream = getClass().getResourceAsStream(CREDENTIALS_FILE_PATH);
+//        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
+//
+//        return new GoogleAuthorizationCodeFlow.Builder(
+//                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
+//                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
+//                .setAccessType("offline")
+//                .build();
+//
+//    }
 
 }

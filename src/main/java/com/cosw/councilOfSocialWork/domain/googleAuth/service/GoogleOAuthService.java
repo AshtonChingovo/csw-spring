@@ -59,15 +59,7 @@ public class GoogleOAuthService {
             if(credential == null || credential.getAccessToken() == null){
 
                 GoogleAuthorizationCodeFlow flow = getGoogleAuthorizationCodeFlow();
-
-                var authURL = flow.newAuthorizationUrl()
-                        .setRedirectUri(REDIRECT_URI)
-                        .build();
-
-                // send auth URL back to UI
-                return TokenResponseDTO.builder()
-                        .redirectUrl(authURL)
-                        .build();
+                return createGoogleOAuthURLThenTokenDTO(flow);
             }
 
             return TokenResponseDTO.builder()
@@ -83,6 +75,31 @@ public class GoogleOAuthService {
             throw new GoogleOAuthException("Failed to find Google Token");
         }
 
+    }
+
+    public TokenResponseDTO getGoogleAuthUrl(){
+        GoogleAuthorizationCodeFlow flow;
+
+        try {
+            flow = getGoogleAuthorizationCodeFlow();
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return createGoogleOAuthURLThenTokenDTO(flow);
+    }
+
+    TokenResponseDTO createGoogleOAuthURLThenTokenDTO(GoogleAuthorizationCodeFlow flow){
+        var authURL = flow.newAuthorizationUrl()
+                .setRedirectUri(REDIRECT_URI)
+                .build();
+
+        // send auth URL back to UI
+        return TokenResponseDTO.builder()
+                .redirectUrl(authURL)
+                .build();
     }
 
     public boolean createAndStoreToken(String code){
@@ -141,10 +158,6 @@ public class GoogleOAuthService {
 
             throw new IllegalStateException("Authorization required. Visit the URL above.");
 
-        }
-        else{
-            log.info("Access Token: {}", credential.getAccessToken());
-            log.info("Refresh Token: {}", credential.getRefreshToken());
         }
 
         return credential;

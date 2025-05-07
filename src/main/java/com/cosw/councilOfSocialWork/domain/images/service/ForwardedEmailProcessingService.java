@@ -13,6 +13,7 @@ import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetCli
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetRepository;
 import com.cosw.councilOfSocialWork.domain.transactionHistory.entity.CardProTransaction;
 import com.cosw.councilOfSocialWork.domain.transactionHistory.repository.CardProTransactionRepository;
+import com.cosw.councilOfSocialWork.exception.EmailsProcessingException;
 import com.cosw.councilOfSocialWork.exception.GoogleOAuthException;
 import com.cosw.councilOfSocialWork.exception.PictureCannotBeDeletedException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
@@ -24,6 +25,7 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
@@ -152,14 +154,18 @@ public class ForwardedEmailProcessingService {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
     }
 
-    public boolean createClientListAndDownloadImages() throws IOException, GeneralSecurityException {
+    public void testGoogleOAuthException(){
+        throw new GoogleOAuthException("GoogleOAuth Authentication Failed");
+    }
 
-        HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+    public boolean createClientListAndDownloadImages(){
 
         Gmail service;
-        ListMessagesResponse response;
+        ListMessagesResponse response = null;
 
         try {
+
+            HttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
             Credential credential = TEST_ENV.equals(activeProfile) ? googleOAuthService.getEmailServerCredentials_Test() : googleOAuthService.getEmailServerCredentials_Dev();
             String applicationName = TEST_ENV.equals(activeProfile) ? APPLICATION_NAME : APPLICATION_NAME_DEV;
@@ -168,10 +174,17 @@ public class ForwardedEmailProcessingService {
                     .setApplicationName(applicationName)
                     .build();
 
+            // log.info("GMAIL RESPONSE: {}", service.);
+
         } catch (IllegalStateException e) {
-            log.info("ERROR: NULL Google OAuth token {}", e.toString());
+            log.error("ERROR: NULL Google OAuth token {}", e.toString());
             throw new GoogleOAuthException("Failed to Authenticate with gmail mailbox");
-            // return false;
+        } catch (GeneralSecurityException e) {
+            log.error("ERROR: GeneralSecurityException createClientListAndDownloadImages() {}", e.toString());
+            throw new GoogleOAuthException("Failed to Authenticate with gmail mailbox");
+        } catch (IOException e) {
+            log.error("ERROR: IOException createClientListAndDownloadImages() {}", e.toString());
+            throw new GoogleOAuthException("Failed to Authenticate with gmail mailbox");
         }
 
         // ListMessagesResponse messagesResponse = service.users().messages().list("me").execute();
@@ -183,12 +196,23 @@ public class ForwardedEmailProcessingService {
         // pagination code for gmail
         do {
             // Fetch emails with pagination support
-            response = service.users().messages()
-                    .list("me")
-                    .setQ("is:unread") // Filter only unread emails
-                    .setMaxResults(100L) // Maximum: 500 per request
-                    .setPageToken(nextPageToken)
-                    .execute();
+            try {
+                response = service.users().messages()
+                        .list("me")
+                        .setQ("is:unread") // Filter only unread emails
+                        .setMaxResults(100L) // Maximum: 500 per request
+                        .setPageToken(nextPageToken)
+                        .execute();
+
+            }
+            catch (GoogleJsonResponseException e){
+                log.error("ERROR: GoogleJsonResponseException {}", e.getStatusCode());
+                throw new GoogleOAuthException("Failed to Authenticate with gmail mailbox");
+            }
+            catch (Exception e) {
+                log.error("ERROR: Exception paginating through emails {}", e.toString());
+                throw new EmailsProcessingException("Failed to Authenticate with gmail mailbox");
+            }
 
             if (response.getMessages() != null) {
                 messages.addAll(response.getMessages());
@@ -230,7 +254,12 @@ public class ForwardedEmailProcessingService {
             var hasDifferentEmail = false;
             var noAttachmentFound = false;
 
-            Message email = service.users().messages().get("me", message.getId()).execute();
+            Message email = null;
+            try {
+                email = service.users().messages().get("me", message.getId()).execute();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             if(email.getPayload() == null){
                 ++emptyPayload;
@@ -587,9 +616,6 @@ public class ForwardedEmailProcessingService {
 
             // Decode the data
             byte[] fileData = Base64.getDecoder().decode(base64);
-
-            log.info("FileName: {}", filename);
-            log.info("FilePath: {}", filePath);
 
             try (FileOutputStream outputStream = new FileOutputStream(file)) {
                 outputStream.write(fileData);
