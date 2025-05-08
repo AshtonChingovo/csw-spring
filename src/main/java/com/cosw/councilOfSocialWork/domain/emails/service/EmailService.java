@@ -47,7 +47,7 @@ public class EmailService {
     String receipientAddress = "coswzw@gmail.com";
     String senderAddress = "coswzw@gmail.com";
     String subject = "Headshot photo request for Practice License";
-    String emailBody = "Dear Client,\n\nI hope this message finds you well. Could you kindly provide a headshot photo at your earliest convenience? We need it to complete the processing of your practice license.\n\nPlease let me know if you have any questions or need assistance with the submission.\n\nBest regards,\n Council of Social Workers Zimbabwe";
+    String emailBody = "Dear Client,\n\nI hope this message finds you well. Could you kindly provide a headshot photo at your earliest convenience? We need it to complete the processing of your practice license.\n\nPlease let me know if you have any questions or need assistance with the submission.\n\nBest regards,\nCouncil of Social Workers Zimbabwe";
 
     private GoogleOAuthService googleOAuthService;
     private TrackingSheetRepository trackingSheetRepository;
