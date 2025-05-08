@@ -32,5 +32,5 @@ public class TrackingSheetClient extends BaseModel {
     // the name of the sheet the user is present
     private String sheetYear;
     private String membershipStatus;
-
+    private boolean headshotRequestEmailSent;
 }

@@ -13,5 +13,6 @@ public record TrackingSheetClientDto(
         String registrationDate,
         String registrationYear,
         String sheetYear,
-        String membershipStatus
+        String membershipStatus,
+        Boolean headshotRequestEmailSent
 ){}

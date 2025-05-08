@@ -217,6 +217,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
                     .sheetYear(sheetName)
                     .registrationYear(registrationYear)
                     .membershipStatus(MEMBERSHIP_DUE_RENEWAL)
+                    .headshotRequestEmailSent(false)
                     .build();
 
         } catch (IllegalStateException e) {
