@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 @RestController
-@RequestMapping("api/v1/attachments")
+@RequestMapping("v1/attachments")
 public class ImagesController {
 
     ForwardedEmailProcessingService emailProcessingService;

@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/oauth2")
+@RequestMapping("v1/oauth2")
 @Slf4j
 public class GoogleOAuthController {
 

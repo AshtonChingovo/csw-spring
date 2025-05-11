@@ -17,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
-@RequestMapping(path = "api/v1/tracking-sheet")
+@RequestMapping(path = "v1/tracking-sheet")
 public class TrackingSheetController {
 
     GoogleSheetService googleSheetService;
@@ -30,7 +30,8 @@ public class TrackingSheetController {
     @Value("${spring.profiles.active}")
     private String activeProfile;
 
-    public TrackingSheetController(GoogleSheetService googleSheetService, TrackingSheetService trackingSheetService, GoogleOAuthService googleOAuthService) {
+    public TrackingSheetController(GoogleSheetService googleSheetService, TrackingSheetService trackingSheetService,
+                                   GoogleOAuthService googleOAuthService) {
         this.googleSheetService = googleSheetService;
         this.trackingSheetService = trackingSheetService;
         this.googleOAuthService = googleOAuthService;

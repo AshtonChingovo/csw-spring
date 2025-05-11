@@ -1,6 +1,5 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.service;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.entity.TrackingSheetClient;
 import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +7,6 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.env.Environment;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,7 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
-public class TrackingSheetExcelSheetGeneration {
+public class FeatureRequestTrackingSheetExcelSheetGeneration {
 
     Environment environment;
 
@@ -29,7 +27,7 @@ public class TrackingSheetExcelSheetGeneration {
     private static String DEV_ENV = "dev";
     private String activeProfile;
 
-    public TrackingSheetExcelSheetGeneration(List<TrackingSheetClient> trackingSheetClientsList) {
+    public FeatureRequestTrackingSheetExcelSheetGeneration(List<TrackingSheetClient> trackingSheetClientsList) {
         this.trackingSheetClientsList = trackingSheetClientsList;
     }
 

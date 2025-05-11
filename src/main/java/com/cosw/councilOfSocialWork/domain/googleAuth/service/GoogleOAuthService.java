@@ -32,12 +32,13 @@ import java.util.List;
 public class GoogleOAuthService {
 
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";  // Downloaded from Google Cloud Console
+    private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
+
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Arrays.asList(GmailScopes.GMAIL_MODIFY, SheetsScopes.SPREADSHEETS);
-    private static final String REDIRECT_URI = "https://cswtest.site/api/api/v1/oauth2/callback";
+    private static final String REDIRECT_URI = "https://cswtest.site/api/v1/oauth2/callback";
 
-    private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
 
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
@@ -73,6 +74,10 @@ public class GoogleOAuthService {
         catch (IOException io){
             log.info("ERROR: creating/loading/requesting new auth with GoogleAuth {}", io.toString());
             throw new GoogleOAuthException("Failed to find Google Token");
+        }
+        catch (Exception e){
+            log.info("ERROR: checkTokenExistsOrReturnNewOAuthUrl()", e.toString());
+            throw new RuntimeException();
         }
 
     }

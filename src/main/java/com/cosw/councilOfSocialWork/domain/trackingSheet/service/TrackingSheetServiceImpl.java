@@ -112,7 +112,9 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
         for (Sheet sheet : trackingSheet) {
             executor.execute(() -> {
 
-                int firstRow = sheet.getFirstRowNum();
+                // row 1 contains the columns labels
+                // add one to getFirstRowNum to start after labels
+                int firstRow = sheet.getFirstRowNum() + 1;
                 int lastRow = sheet.getLastRowNum();
 
                 // iterate through Excel file rows
@@ -256,7 +258,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     @Override
     public boolean generatePhoneNumberCardProSheet() {
 
-        new TrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithSheetYear("/25", "2025")).createFile();
+        new FeatureRequestTrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithSheetYear("/25", "2025")).createFile();
 
         return true;
     }

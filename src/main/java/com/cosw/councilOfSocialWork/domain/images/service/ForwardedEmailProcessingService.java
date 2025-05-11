@@ -81,7 +81,7 @@ public class ForwardedEmailProcessingService {
     private static final String CREDENTIALS_FILE_PATH_TEST = "/credentials.json";  // Downloaded from Google Cloud Console
     private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
 
-    private static String redirectUri = "https://cswtest.site/api/api/v1/oauth2/callback";
+    private static String redirectUri = "https://cswtest.site/api/v1/oauth2/callback";
 
     private static String TEST_ENV = "test";
     private static String DEV_ENV = "dev";
@@ -230,6 +230,7 @@ public class ForwardedEmailProcessingService {
                 throw new RuntimeException(e);
             }
 
+
         } while (nextPageToken != null);
 
         // Create a thread pool with 3 threads
@@ -248,6 +249,7 @@ public class ForwardedEmailProcessingService {
         var hasDifferentEmailList = new ArrayList<String>();
         var emptyPayloadEmailsList = new ArrayList<String>();
 
+
         for(Message message : messages) {
 
             var isNotInTrackingSheet = false;
@@ -258,10 +260,12 @@ public class ForwardedEmailProcessingService {
             try {
                 email = service.users().messages().get("me", message.getId()).execute();
             } catch (IOException e) {
+                log.info("ERROR getting messages {}", e.getMessage());
                 throw new RuntimeException(e);
             }
 
-            if(email.getPayload() == null){
+
+            if(email.getPayload() == null || email.getPayload().getParts() == null){
                 ++emptyPayload;
                 continue;
             }
@@ -395,6 +399,9 @@ public class ForwardedEmailProcessingService {
                 .totalEmails(messages.size())
                 .build();
 
+        log.info("P11");
+
+
         // record stats for this transaction
         var multipleImagesList = cardProClientList.stream().filter(it -> it.getImages().size() > 1).map(CardProClient::getEmail).toList();
         // remove current stats
@@ -452,6 +459,9 @@ public class ForwardedEmailProcessingService {
     public String extractClientEmailAddress(Message message){
         // Extract the ---------- Forwarded message --------- section
         var email = "";
+
+        log.info("Part size {}", message.getPayload().getParts().size());
+        log.info("Part data {}", message.getPayload().getParts());
 
         for(MessagePart emailMessagePart: message.getPayload().getParts()){
             if(emailMessagePart.getParts() != null){
@@ -527,6 +537,9 @@ public class ForwardedEmailProcessingService {
 
         Set<Image> images = new HashSet<>(); // Create a Set
 
+        // log.info("GmailParts {} {}", client.getEmail(), part);
+
+        // log.info("L1");
         if (part.getParts() != null) {
             for (MessagePart subPart : part.getParts()) {
 
@@ -563,6 +576,8 @@ public class ForwardedEmailProcessingService {
                 );
             }
         }
+
+        // log.info("L2 ----");
         return images;
     }
 

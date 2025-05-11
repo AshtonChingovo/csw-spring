@@ -31,7 +31,7 @@ import java.util.Arrays;
 public class GoogleSheetService {
 
     private static final String APPLICATION_NAME = "csw";
-    private static final String SPREAD_SHEET_ID = "1X2MRl9ZrU4_XshYs4BZP5-ThVo-rw2oCEP4fYBE-L-c";
+    private static final String SPREAD_SHEET_ID = "1IKV4deZ8LCMMIU2wKFh6YgisxJjclqVj8UpMYdXuzUI";
     private final String MEMBERSHIP_ACTIVE = "active";
 
     // google sheet columns
@@ -143,6 +143,7 @@ public class GoogleSheetService {
 
             var updatedClient = trackingSheetRepository.findById(client.getId()).orElseThrow(() -> new ResourceNotFoundException("Could find TrackingSheetClient"));
 
+            log.info("UPDATED CLIENT: {}", updatedClient.getMembershipStatus());
             log.info("UPDATED CLIENT: {}", updatedClient.getMembershipStatus());
 
             // return updated client
