@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
-public class ForwardedEmailProcessingService {
+public class EmailProcessingService {
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -89,7 +89,7 @@ public class ForwardedEmailProcessingService {
     @Value("${spring.profiles.active}")
     private String activeProfile;
 
-    public ForwardedEmailProcessingService(
+    public EmailProcessingService(
             ImagesRepository imagesRepository,
             CardProClientRepository cardProClientRepository,
             TrackingSheetRepository trackingSheetRepository,
@@ -109,7 +109,7 @@ public class ForwardedEmailProcessingService {
     public static Credential getEmailServerCredentials_Test(final HttpTransport HTTP_TRANSPORT) throws IOException {
 
         FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
-        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
+        InputStream inputStream = EmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -142,7 +142,7 @@ public class ForwardedEmailProcessingService {
     }
 
     public static Credential getEmailServerCredentials_Dev(final HttpTransport HTTP_TRANSPORT) throws IOException {
-        InputStream inputStream = ForwardedEmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
+        InputStream inputStream = EmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -263,7 +263,6 @@ public class ForwardedEmailProcessingService {
                 log.info("ERROR getting messages {}", e.getMessage());
                 throw new RuntimeException(e);
             }
-
 
             if(email.getPayload() == null || email.getPayload().getParts() == null){
                 ++emptyPayload;
