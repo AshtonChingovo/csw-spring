@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
-    TrackingSheetMembershipStatusProcessingService trackingSheetMembershipStatusProcessingService;
+    MembershipStatusProcessingService membershipStatusProcessingService;
     TrackingSheetStatsRepository trackingSheetStatsRepository;
     TrackingSheetClientMapper mapper;
 
@@ -49,10 +49,10 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     // default membership
     private String MEMBERSHIP_DUE_RENEWAL = "renewal_due";
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, TrackingSheetMembershipStatusProcessingService trackingSheetMembershipStatusProcessingService,
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, MembershipStatusProcessingService membershipStatusProcessingService,
                                     TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
-        this.trackingSheetMembershipStatusProcessingService = trackingSheetMembershipStatusProcessingService;
+        this.membershipStatusProcessingService = membershipStatusProcessingService;
         this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.mapper = mapper;
     }
@@ -252,7 +252,7 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     @Override
     public boolean processTrackingSheet() {
-        return trackingSheetMembershipStatusProcessingService.processTrackingSheetClientMembershipStatus();
+        return membershipStatusProcessingService.processTrackingSheetClientMembershipStatus();
     }
 
     @Override

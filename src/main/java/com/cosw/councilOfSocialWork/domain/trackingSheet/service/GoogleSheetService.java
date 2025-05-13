@@ -59,11 +59,13 @@ public class GoogleSheetService {
         Credential credential = googleOAuthService.getEmailServerCredentials_Dev();
 
         try {
+
             return new Sheets.Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
                     JacksonFactory.getDefaultInstance(), credential)
                     .setApplicationName(APPLICATION_NAME)
                     .build();
+
         } catch (GeneralSecurityException e) {
             log.info("ERROR: getting googleSheetService {}", e.toString());
             throw new RuntimeException(e);
@@ -76,6 +78,7 @@ public class GoogleSheetService {
     public TrackingSheetClientDto renewClientInGoogleTrackingSheet(GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
 
         String newClientPracticeNumber;
+
         var client = trackingSheetRepository
                 .findById(googleTrackingSheetRenewalDto.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Could not find client in Tracking Sheet"));
@@ -142,9 +145,6 @@ public class GoogleSheetService {
             updateTrackingSheetStats();
 
             var updatedClient = trackingSheetRepository.findById(client.getId()).orElseThrow(() -> new ResourceNotFoundException("Could find TrackingSheetClient"));
-
-            log.info("UPDATED CLIENT: {}", updatedClient.getMembershipStatus());
-            log.info("UPDATED CLIENT: {}", updatedClient.getMembershipStatus());
 
             // return updated client
             return mapper.trackingSheetClientToTrackingSheetClientDto(updatedClient);

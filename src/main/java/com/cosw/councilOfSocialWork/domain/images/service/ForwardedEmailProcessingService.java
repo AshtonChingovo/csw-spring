@@ -423,9 +423,6 @@ public class ForwardedEmailProcessingService {
                         .build()
         );
 
-        log.info("Stats Total Emails: {}", response.getMessages().size());
-        log.info("Stats Multi: {}", multipleImagesList.size());
-
         // add transaction ids to all records
         cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction));
 

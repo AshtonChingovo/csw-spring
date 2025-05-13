@@ -6,38 +6,43 @@ import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingShee
 import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingSheetStatsRepository;
 import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Year;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class TrackingSheetMembershipStatusProcessingService {
+public class MembershipStatusProcessingService {
 
     TrackingSheetRepository trackingSheetRepository;
     TrackingSheetStatsRepository trackingSheetStatsRepository;
-    List<TrackingSheetClient> trackingSheetClientList;
+    List<String> activeMembersEmailList;
 
     // membership status
     private final String MEMBERSHIP_ACTIVE = "active";
 
-    public TrackingSheetMembershipStatusProcessingService(TrackingSheetRepository trackingSheetRepository, TrackingSheetStatsRepository trackingSheetStatsRepository) {
+    public MembershipStatusProcessingService(TrackingSheetRepository trackingSheetRepository, TrackingSheetStatsRepository trackingSheetStatsRepository) {
         this.trackingSheetRepository = trackingSheetRepository;
         this.trackingSheetStatsRepository = trackingSheetStatsRepository;
     }
 
+    @Transactional
     boolean processTrackingSheetClientMembershipStatus(){
 
         try {
             String activeYear = String.valueOf(Year.now().getValue());
 
             // get all active members for this year
-            trackingSheetClientList = trackingSheetRepository.findBySheetYear(activeYear);
+            activeMembersEmailList = trackingSheetRepository.findBySheetYear(activeYear).stream().map(TrackingSheetClient::getEmail).collect(Collectors.toList());
 
             // set all the emails of active members to ACTIVE MEMBERSHIP
-            trackingSheetClientList.forEach( client -> trackingSheetRepository.updateMembershipStatus(client.getEmail(), MEMBERSHIP_ACTIVE));
+            // activeMembersEmailList.forEach(client -> trackingSheetRepository.updateMembershipStatus(client.getEmail(), MEMBERSHIP_ACTIVE));
+
+            trackingSheetRepository.bulkUpdateMembershipStatus(activeMembersEmailList, MEMBERSHIP_ACTIVE);
 
             // update tracking sheet stats
             updateTrackingSheetStats();

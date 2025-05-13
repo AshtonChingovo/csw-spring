@@ -34,6 +34,10 @@ public interface TrackingSheetRepository extends PagingAndSortingRepository<Trac
     @Query("UPDATE TrackingSheetClient t SET t.membershipStatus = :membershipStatus WHERE t.email = :email")
     void updateMembershipStatus(@Param("email") String email, @Param("membershipStatus") String membershipStatus);
 
+    @Modifying
+    @Query("UPDATE TrackingSheetClient t SET t.membershipStatus = :membershipStatus WHERE t.email IN :emails")
+    void bulkUpdateMembershipStatus(@Param("emails") List<String> emails, @Param("membershipStatus") String membershipStatus);
+
     @Query("""
             SELECT t FROM TrackingSheetClient t WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
                OR LOWER(t.surname) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(t.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) ORDER BY t.sheetYear DESC, t.name ASC""")
