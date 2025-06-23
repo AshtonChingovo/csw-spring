@@ -9,7 +9,6 @@ import com.cosw.councilOfSocialWork.domain.trackingSheet.repository.TrackingShee
 import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.mapper.trackingSheet.TrackingSheetClientMapper;
-
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -39,7 +38,7 @@ import java.util.stream.Collectors;
 public class TrackingSheetServiceImpl implements TrackingSheetService {
 
     TrackingSheetRepository trackingSheetRepository;
-    MembershipStatusProcessingServiceImpl membershipStatusProcessingServiceImpl;
+    MembershipStatusProcessingService membershipStatusProcessingService;
     TrackingSheetStatsRepository trackingSheetStatsRepository;
     TrackingSheetClientMapper mapper;
 
@@ -50,10 +49,10 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
     // default membership
     private String MEMBERSHIP_DUE_RENEWAL = "renewal_due";
 
-    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, MembershipStatusProcessingServiceImpl membershipStatusProcessingServiceImpl,
+    public TrackingSheetServiceImpl(TrackingSheetRepository trackingSheetRepository, MembershipStatusProcessingService membershipStatusProcessingService,
                                     TrackingSheetStatsRepository trackingSheetStatsRepository, TrackingSheetClientMapper mapper) {
         this.trackingSheetRepository = trackingSheetRepository;
-        this.membershipStatusProcessingServiceImpl = membershipStatusProcessingServiceImpl;
+        this.membershipStatusProcessingService = membershipStatusProcessingService;
         this.trackingSheetStatsRepository = trackingSheetStatsRepository;
         this.mapper = mapper;
     }
@@ -243,6 +242,27 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
         return trackingSheetClients.map(mapper::trackingSheetClientToTrackingSheetClientDto);
     }
 
+    @Override
+    public TrackingSheetStatsDto getTrackingSheetStats() {
+        return trackingSheetStatsRepository
+                .findFirstByOrderByIdAsc()
+                .map(mapper::trackingSheetStatsToTrackingSheetStatsDto)
+                .orElseThrow(() -> new ResourceNotFoundException("Could not find any stats"));
+    }
+
+    @Override
+    public boolean processTrackingSheet() {
+        return membershipStatusProcessingService.processTrackingSheetClientMembershipStatus();
+    }
+
+    @Override
+    public boolean generatePhoneNumberCardProSheet() {
+
+        new FeatureRequestTrackingSheetExcelSheetGeneration(trackingSheetRepository.findAllWithSheetYear("/25", "2025")).createFile();
+
+        return true;
+    }
+
     public Page<TrackingSheetClient> fetchFilteredResult(Pageable page, String searchParam, String filterParam){
 
         // clients on the current year's tracking sheet are active (renewed) clients
@@ -266,20 +286,5 @@ public class TrackingSheetServiceImpl implements TrackingSheetService {
             };
         }
     }
-
-
-    @Override
-    public TrackingSheetStatsDto getTrackingSheetStats() {
-        return trackingSheetStatsRepository
-                .findFirstByOrderByIdAsc()
-                .map(mapper::trackingSheetStatsToTrackingSheetStatsDto)
-                .orElseThrow(() -> new ResourceNotFoundException("Could not find any stats"));
-    }
-
-    @Override
-    public boolean processTrackingSheet() {
-        return membershipStatusProcessingServiceImpl.processTrackingSheetClientMembershipStatus();
-    }
-
 
 }

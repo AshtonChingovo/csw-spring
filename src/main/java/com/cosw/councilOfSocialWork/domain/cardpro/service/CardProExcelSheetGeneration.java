@@ -2,11 +2,11 @@ package com.cosw.councilOfSocialWork.domain.cardpro.service;
 
 import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
 import com.cosw.councilOfSocialWork.exception.ProcessingFileException;
-import com.cosw.councilOfSocialWork.util.stringUtil.ProfileNamesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.io.File;
@@ -16,17 +16,21 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import static com.cosw.councilOfSocialWork.util.stringUtil.NamesUtil.*;
-
 @Slf4j
-public class CardProExcelSheetGenerationHelper {
+public class CardProExcelSheetGeneration {
+
+    Environment environment;
 
     List<CardProClient> cardProClientsList;
     CellStyle style;
 
+    private static String TEST_ENV = "test";
+    private static String DEV_ENV = "dev";
+    private static String FEATURE_ENV = "feature";
+
     private String activeProfile;
 
-    public CardProExcelSheetGenerationHelper(List<CardProClient> cardProClientsList, String activeProfile) {
+    public CardProExcelSheetGeneration(List<CardProClient> cardProClientsList, String activeProfile) {
         this.cardProClientsList = cardProClientsList;
         this.activeProfile = activeProfile;
     }
@@ -34,7 +38,7 @@ public class CardProExcelSheetGenerationHelper {
     boolean createFile(){
         Workbook workbook = new XSSFWorkbook();
 
-        Sheet sheet = workbook.createSheet(SOCIAL_WORKERS_FILENAME);
+        Sheet sheet = workbook.createSheet("Social Workers");
         style = workbook.createCellStyle();
 
         sheet.setColumnWidth(0, 6000);
@@ -90,7 +94,7 @@ public class CardProExcelSheetGenerationHelper {
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
         row.createCell(0).setCellValue(cardProClient.getProfession());
-/*        if(cardProClient.isHasDifferentEmail()){
+        if(cardProClient.isHasDifferentEmail()){
             style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(0).setCellStyle(style);
@@ -99,17 +103,70 @@ public class CardProExcelSheetGenerationHelper {
             style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             row.getCell(0).setCellStyle(style);
-        }*/
+        }
 
         row.createCell(1).setCellValue(cardProClient.getName() + " " + cardProClient.getSurname());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(1).setCellStyle(style);
+        }
+        if(cardProClient.isHasNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(1).setCellStyle(style);
+        }
+
         row.createCell(2).setCellValue(cardProClient.getRegistrationNumber());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            row.getCell(2).setCellStyle(style);
+        }
+        if(cardProClient.isHasNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(2).setCellStyle(style);
+        }
+
         row.createCell(3).setCellValue(cardProClient.getPracticeNumber());
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            row.getCell(3).setCellStyle(style);
+        }
+        if(cardProClient.isHasNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(3).setCellStyle(style);
+        }
+
         row.createCell(4).setCellValue(cardProClient.getDateOfExpiry());
-        row.createCell(5).setCellValue(getAttachmentFileName(cardProClient));
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(4).setCellStyle(style);
+        }
+        if(cardProClient.isHasNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(4).setCellStyle(style);
+        }
+
+        row.createCell(5).setCellValue(attachmentFileName(cardProClient));
+
+        if(cardProClient.isHasDifferentEmail()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex()); // Light Yellow
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(5).setCellStyle(style);
+        }
+        if(cardProClient.isHasNoAttachment()){
+            style.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            row.getCell(5).setCellStyle(style);
+        }
 
     }
 
-    private String getAttachmentFileName(CardProClient client){
+    private String attachmentFileName(CardProClient client){
         try {
 
             String[] usernames = client.getName().split(" ");
@@ -130,7 +187,7 @@ public class CardProExcelSheetGenerationHelper {
 
     void createThenSaveFile(Workbook workbook){
 
-        String filename = CARDPRO_FILENAME;
+        String filename = "cardpro.xlsx";
 
         String currentYear = String.valueOf(LocalDate.now().getYear());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
@@ -139,12 +196,12 @@ public class CardProExcelSheetGenerationHelper {
         String userHome = "";
         String filePath = "";
 
-        if(ProfileNamesUtil.TEST_ENV.equals(activeProfile)){
-            filePath =  CSW_FOLDER + File.separator + CARDPRO_FOLDER + File.separator + filename;
+        if(TEST_ENV.equals(activeProfile)){
+            filePath =  "csw_files" + File.separator + "cardpro_files" + File.separator + filename;
         }
         else{
-            userHome = System.getProperty(HOME_SERVER_FOLDER);
-            filePath = userHome + File.separator + DOWNLOADS_SERVER_FOLDER + File.separator + CSW_SERVER_FOLDER + File.separator + currentYear + File.separator + dateToday + File.separator + CARDPRO_SERVER_FOLDER + File.separator + filename;
+            userHome = System.getProperty("user.home");
+            filePath = userHome + File.separator + "Downloads" + File.separator + "CWS Files" + File.separator + currentYear + File.separator + dateToday + File.separator +  "CardPro_Files" + File.separator + filename;
         }
 
         File file = new File(filePath);

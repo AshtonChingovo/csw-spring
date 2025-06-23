@@ -1,12 +1,10 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.controller;
 
 import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthService;
-import com.cosw.councilOfSocialWork.domain.googleAuth.service.GoogleOAuthServiceImpl;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.GoogleTrackingSheetRenewalDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetClientDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.dto.TrackingSheetStatsDto;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.GoogleSheetService;
-import com.cosw.councilOfSocialWork.domain.trackingSheet.service.GoogleSheetServiceImpl;
 import com.cosw.councilOfSocialWork.domain.trackingSheet.service.TrackingSheetService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import static com.cosw.councilOfSocialWork.util.stringUtil.ProfileNamesUtil.TEST_ENV;
-
 @Slf4j
 @RestController
 @RequestMapping(path = "v1/tracking-sheet")
@@ -28,11 +24,14 @@ public class TrackingSheetController {
     TrackingSheetService trackingSheetService;
     GoogleOAuthService googleOAuthService;
 
+    private static String TEST_ENV = "test";
+    private static String DEV_ENV = "dev";
+
     @Value("${spring.profiles.active}")
     private String activeProfile;
 
-    public TrackingSheetController(GoogleSheetServiceImpl googleSheetService, TrackingSheetService trackingSheetService,
-                                   GoogleOAuthServiceImpl googleOAuthService) {
+    public TrackingSheetController(GoogleSheetService googleSheetService, TrackingSheetService trackingSheetService,
+                                   GoogleOAuthService googleOAuthService) {
         this.googleSheetService = googleSheetService;
         this.trackingSheetService = trackingSheetService;
         this.googleOAuthService = googleOAuthService;
@@ -75,6 +74,11 @@ public class TrackingSheetController {
     @PostMapping("/renewals")
     public ResponseEntity<TrackingSheetClientDto> renewClient(@RequestBody GoogleTrackingSheetRenewalDto googleTrackingSheetRenewalDto){
         return new ResponseEntity<>(googleSheetService.renewClientInGoogleTrackingSheet(googleTrackingSheetRenewalDto), HttpStatus.OK);
+    }
+
+    @GetMapping("/cells")
+    public ResponseEntity<?> generatePhoneNumberSheet(){
+        return new ResponseEntity<>(trackingSheetService.generatePhoneNumberCardProSheet(), HttpStatus.OK);
     }
 
 }
