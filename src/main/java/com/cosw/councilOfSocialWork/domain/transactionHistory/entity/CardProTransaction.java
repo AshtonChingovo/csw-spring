@@ -1,7 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.transactionHistory.entity;
 
-import com.cosw.councilOfSocialWork.domain.cardpro.entity.CardProClient;
-import com.cosw.councilOfSocialWork.util.BaseModel;
+import com.cosw.councilOfSocialWork.util.modelUtil.BaseModel;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

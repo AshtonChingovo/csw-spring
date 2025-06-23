@@ -1,6 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.cardpro.entity;
 
-import com.cosw.councilOfSocialWork.util.BaseModel;
+import com.cosw.councilOfSocialWork.util.modelUtil.BaseModel;
 import jakarta.persistence.*;
 import lombok.*;
 

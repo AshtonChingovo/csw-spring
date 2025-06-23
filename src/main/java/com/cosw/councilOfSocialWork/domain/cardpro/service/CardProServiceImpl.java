@@ -7,7 +7,7 @@ import com.cosw.councilOfSocialWork.domain.cardpro.entity.ProcessedCardProClient
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.CardProClientRepository;
 import com.cosw.councilOfSocialWork.domain.cardpro.repository.ProcessedCardProClientsStatsRepository;
 import com.cosw.councilOfSocialWork.domain.images.entity.Image;
-import com.cosw.councilOfSocialWork.domain.images.service.EmailProcessingService;
+import com.cosw.councilOfSocialWork.domain.images.service.Old_EmailProcessingService;
 import com.cosw.councilOfSocialWork.exception.PictureFileException;
 import com.cosw.councilOfSocialWork.exception.ResourceNotFoundException;
 import com.cosw.councilOfSocialWork.exception.ZipFileException;
@@ -44,7 +44,7 @@ public class CardProServiceImpl implements CardProService{
 
     private final CardProClientRepository cardProClientRepository;
     private final ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository;
-    private final EmailProcessingService emailProcessingService;
+    private final Old_EmailProcessingService oldEmailProcessingService;
     private final EmailConfiguration emailConfiguration;
     private final CardProClientMapper mapper;
 
@@ -61,12 +61,12 @@ public class CardProServiceImpl implements CardProService{
     public CardProServiceImpl(
             CardProClientRepository cardProClientRepository,
             ProcessedCardProClientsStatsRepository processedCardProClientsStatsRepository,
-            EmailProcessingService emailProcessingService,
+            Old_EmailProcessingService oldEmailProcessingService,
             EmailConfiguration emailConfiguration,
             CardProClientMapper mapper) {
         this.cardProClientRepository = cardProClientRepository;
         this.processedCardProClientsStatsRepository = processedCardProClientsStatsRepository;
-        this.emailProcessingService = emailProcessingService;
+        this.oldEmailProcessingService = oldEmailProcessingService;
         this.emailConfiguration = emailConfiguration;
         this.mapper = mapper;
     }

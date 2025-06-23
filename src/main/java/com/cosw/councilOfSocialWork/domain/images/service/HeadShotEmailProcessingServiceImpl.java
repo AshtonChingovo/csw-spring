@@ -53,6 +53,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -71,15 +72,10 @@ public class EmailProcessingService {
     private ImageMapper mapper;
 
     private List<CardProClient> cardProClientList = new ArrayList<>();
-    private ConcurrentHashMap<String, CardProClient> cardProClientConcurrentHashMap = new ConcurrentHashMap<>();
 
     private static final String APPLICATION_NAME = "csw";
     private static final String APPLICATION_NAME_DEV = "csw_dev";
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
-    private static final List<String> SCOPES = Arrays.asList(GmailScopes.GMAIL_MODIFY, SheetsScopes.SPREADSHEETS);
-    private static final String CREDENTIALS_FILE_PATH_TEST = "/credentials.json";  // Downloaded from Google Cloud Console
-    private static final String CREDENTIALS_FILE_PATH_DEV = "/credentials_dev.json";  // Downloaded from Google Cloud Console
 
     private static String redirectUri = "https://cswtest.site/api/v1/oauth2/callback";
 
@@ -104,58 +100,6 @@ public class EmailProcessingService {
         this.cardProTransactionRepository = cardProTransactionRepository;
         this.googleOAuthService = googleOAuthService;
         this.mapper = mapper;
-    }
-
-    public static Credential getEmailServerCredentials_Test(final HttpTransport HTTP_TRANSPORT) throws IOException {
-
-        FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
-        InputStream inputStream = EmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_TEST);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(dataStoreFactory)
-                .setAccessType("offline")
-                .addRefreshListener(new DataStoreCredentialRefreshListener("user", dataStoreFactory))
-                .build();
-
-        Credential credential = flow.loadCredential("user");
-
-        if (credential == null || credential.getAccessToken() == null) {
-
-            // This is the important part: manually initiate auth URL with custom redirect
-            String authUrl = flow.newAuthorizationUrl()
-                    .setRedirectUri(redirectUri)
-                    .build();
-
-            log.info("🔐 Please authorize the app by visiting:\n {}", authUrl);
-
-            throw new IllegalStateException("Authorization required. Visit the URL above.");
-
-        }
-        else{
-            log.info("Access Token: {}", credential.getAccessToken());
-            log.info("Refresh Token: {}", credential.getRefreshToken());
-        }
-
-        return credential;
-    }
-
-    public static Credential getEmailServerCredentials_Dev(final HttpTransport HTTP_TRANSPORT) throws IOException {
-        InputStream inputStream = EmailProcessingService.class.getResourceAsStream(CREDENTIALS_FILE_PATH_DEV);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(inputStream));
-
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-    }
-
-    public void testGoogleOAuthException(){
-        throw new GoogleOAuthException("GoogleOAuth Authentication Failed");
     }
 
     public boolean createClientListAndDownloadImages(){
@@ -230,7 +174,6 @@ public class EmailProcessingService {
                 throw new RuntimeException(e);
             }
 
-
         } while (nextPageToken != null);
 
         // Create a thread pool with 3 threads
@@ -249,162 +192,26 @@ public class EmailProcessingService {
         var hasDifferentEmailList = new ArrayList<String>();
         var emptyPayloadEmailsList = new ArrayList<String>();
 
+        //cardProClientList = messages.stream().map(it -> createCardProClient(service, it)).collect(Collectors.toList());
+        cardProClientList = messages.stream().parallel().map(it -> createCardProClient(service, it)).collect(Collectors.toList());
 
-        for(Message message : messages) {
-
-            var isNotInTrackingSheet = false;
-            var hasDifferentEmail = false;
-            var noAttachmentFound = false;
-
-            Message email = null;
-            try {
-                email = service.users().messages().get("me", message.getId()).execute();
-            } catch (IOException e) {
-                log.info("ERROR getting messages {}", e.getMessage());
-                throw new RuntimeException(e);
-            }
-
-            if(email.getPayload() == null || email.getPayload().getParts() == null){
-                ++emptyPayload;
-                continue;
-            }
-
-            var clientEmailAddress = extractClientEmailAddress(email);
-
-            if(clientEmailAddress.isEmpty()){
-                ++emptyEmail;
-                continue;
-            }
-
-            if("csw.identificationcards@gmail.com".equals(clientEmailAddress)){
-                ++fromCSW;
-                continue;
-            }
-
-            // there are multiple records in the tracking sheet with identical email address
-            var client = trackingSheetRepository.findFirstByEmailOrderBySheetYearDesc(clientEmailAddress);
-
-            // try & find client via name & surname in the tracking sheet
-            if(client.isEmpty()){
-
-                var clientName = extractClientNameFromAddress(email).trim();
-
-                var name = "";
-                var surname = "";
-
-                var lastIndexOfSpaceChar = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
-
-                // client has name & surname
-                if(clientName.lastIndexOf(" ") > -1){
-                    name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
-                    surname = extractClientNameFromAddress(email).substring(clientName.lastIndexOf(" ")).trim();
-                }
-                // client does not have a surname
-                else{
-                    name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
-                    surname = "";
-                }
-
-                // find if a client exists with extracted name & surname since email is not in Tracking Sheet
-                if(trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname).isPresent()){
-
-                    client = trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname);
-                    hasDifferentEmail = true;
-
-                    hasDifferentEmailList.add(clientEmailAddress);
-
-                    ++hasDifferentEmailCounter;
-
-                }
-                else{
-
-                    ++notInTrackingSheetCounter;
-
-                    notInTrackingSheetEmailList.add(clientEmailAddress);
-
-                    var clientObj = CardProClient.builder()
-                            .id(null)
-                            .email(clientEmailAddress)
-                            .name(name.isEmpty() ? "N/A" : name)
-                            .surname(surname.isEmpty() ? "N/A" : surname)
-                            .registrationNumber("N/A")
-                            .practiceNumber("N/A")
-                            .profession("N/A")
-                            .registrationYear("N/A")
-                            .sheetYear("N/A")
-                            .dateOfExpiry("N/A")
-                            .hasDifferentEmail(false)
-                            .notInTrackingSheet(true)
-                            .messageId(message.getId())
-                            .images(new HashSet<>())
-                            .build();
-
-                    cardProClientList.add(clientObj);
-
-                    continue;
-                }
-            }
-
-            try {
-                var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
-
-                var clientObj = CardProClient.builder()
-                        .id(null)
-                        .email(clientEmailAddress)
-                        .name(client.get().getName())
-                        .surname(client.get().getSurname())
-                        .registrationNumber(client.get().getRegistrationNumber())
-                        .practiceNumber(client.get().getPracticeNumber())
-                        .registrationYear(client.get().getRegistrationYear())
-                        .sheetYear(client.get().getSheetYear())
-                        .profession("Registered Social Worker")
-                        .dateOfExpiry("31/12/" + LocalDate.now().getYear())
-                        .hasDifferentEmail(hasDifferentEmail)
-                        .messageId(message.getId())
-                        .build();
-
-                if(!attachmentsSet.isEmpty()){
-
-                    attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
-
-                    ++goodEmailCounter;
-
-                    clientObj.setImages(attachmentsSet);
-                    clientObj.setHasNoAttachment(false);
-
-                }
-                else{
-
-                    emptyPayloadEmailsList.add(clientEmailAddress);
-
-                    ++emailsNoAttachmentCounter;
-
-                    clientObj.setImages(new HashSet<>());
-                    clientObj.setHasNoAttachment(true);
-                }
-
-                cardProClientList.add(clientObj);
-
-            } catch (IOException e) {
-                log.info("ERROR Client Email :: {} <-> {}", clientEmailAddress, e.toString());
-                return false;
-            }
-        }
-
-        log.info("Image Processing Done");
+        // log.info("Image Processing Done");
 
         // create audit cardpro transaction object
         CardProTransaction cardProTransaction = CardProTransaction.builder()
                 .totalEmails(messages.size())
                 .build();
 
-        log.info("P11");
+        //log.info("P11");
 
+        // TODO fix when all clients in the email are not in T.S. eg when using mailbox filled with demo day email vs legit T.S. not the chatgpt generated one
+        var emailsWithMultipleImagesList = cardProClientList.stream().filter(client -> client != null && client.getImages().size() > 1).map(CardProClient::getEmail).toList();
 
-        // record stats for this transaction
-        var multipleImagesList = cardProClientList.stream().filter(it -> it.getImages().size() > 1).map(CardProClient::getEmail).toList();
+        // log.info("P12");
+
         // remove current stats
         processedCardProClientsStatsRepository.deleteAll();
+
         processedCardProClientsStatsRepository.save(
                 ProcessedCardProClientsStats.builder()
                         .totalEmails(response.getMessages().size())
@@ -417,13 +224,13 @@ public class EmailProcessingService {
                         .emptyEmails(emptyEmail)
                         .emptyPayloadEmails(emptyPayload)
                         .emptyPayloadEmailsList(emptyPayloadEmailsList)
-                        .totalEmailsWithMultipleImages(multipleImagesList.size())
-                        .totalEmailWithMultipleImagesList(multipleImagesList)
+                        .totalEmailsWithMultipleImages(emailsWithMultipleImagesList.size())
+                        .totalEmailWithMultipleImagesList(emailsWithMultipleImagesList)
                         .build()
         );
 
         // add transaction ids to all records
-        cardProClientList.forEach(it -> it.setTransactionId(cardProTransaction));
+        cardProClientList.stream().filter(Objects::nonNull).forEach(it -> it.setTransactionId(cardProTransaction));
 
         // clear current data
         cardProClientRepository.deleteAll();
@@ -431,7 +238,7 @@ public class EmailProcessingService {
         // save transaction data
         cardProTransactionRepository.save(cardProTransaction);
 
-        cardProClientRepository.saveAll(cardProClientList);
+        cardProClientRepository.saveAll(cardProClientList.stream().filter(Objects::nonNull).toList());
         cardProClientList.clear();
 
         // clear out fields
@@ -440,6 +247,118 @@ public class EmailProcessingService {
         log.info("Data persisted");
 
         return true;
+
+    }
+
+    public CardProClient createCardProClient(Gmail service, Message message){
+
+        Message email = null;
+
+        try {
+            email = service.users().messages().get("me", message.getId()).execute();
+        } catch (IOException e) {
+            log.info("ERROR getting messages {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        if(email.getPayload() == null || email.getPayload().getParts() == null)
+            return null;
+
+        var clientEmailAddress = extractClientEmailAddress(email);
+
+        if(clientEmailAddress.isEmpty())
+            return null;
+
+        if("csw.identificationcards@gmail.com".equals(clientEmailAddress))
+            return null;
+
+        // there are multiple records in the tracking sheet with identical email address
+        var client = trackingSheetRepository.findFirstByEmailOrderBySheetYearDesc(clientEmailAddress);
+
+        // try & find client via name & surname in the tracking sheet
+        if(client.isEmpty()){
+
+            var clientName = extractClientNameFromAddress(email).trim();
+
+            var name = "";
+            var surname = "";
+
+            var lastIndexOfSpaceChar = clientName.lastIndexOf(" ") > -1 ? clientName.lastIndexOf(" ") : clientName.length();
+
+            // client has name & surname
+            if(clientName.lastIndexOf(" ") > -1){
+                name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
+                surname = extractClientNameFromAddress(email).substring(clientName.lastIndexOf(" ")).trim();
+            }
+            // client does not have a surname just first name
+            else{
+                name = extractClientNameFromAddress(email).substring(0, lastIndexOfSpaceChar).trim();
+                surname = "";
+            }
+
+            // find if a client exists with extracted name & surname since email is not in Tracking Sheet
+            if(trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname).isPresent()){
+                client = trackingSheetRepository.findFirstByNameAndSurnameOrderBySheetYearDesc(name, surname);
+            }
+            else{
+
+                return CardProClient.builder()
+                        .id(null)
+                        .email(clientEmailAddress)
+                        .name(name.isEmpty() ? "N/A" : name)
+                        .surname(surname.isEmpty() ? "N/A" : surname)
+                        .registrationNumber("N/A")
+                        .practiceNumber("N/A")
+                        .profession("N/A")
+                        .registrationYear("N/A")
+                        .sheetYear("N/A")
+                        .dateOfExpiry("N/A")
+                        .hasDifferentEmail(false)
+                        .notInTrackingSheet(true)
+                        .messageId(message.getId())
+                        .images(new HashSet<>())
+                        .build();
+            }
+        }
+
+        try {
+            var attachmentsSet = extractThenDownloadAttachmentAndReturnAttachmentPath(email.getPayload(), message.getId(), service, client.get());
+
+            var clientObj = CardProClient.builder()
+                    .id(null)
+                    .email(clientEmailAddress)
+                    .name(client.get().getName())
+                    .surname(client.get().getSurname())
+                    .registrationNumber(client.get().getRegistrationNumber())
+                    .practiceNumber(client.get().getPracticeNumber())
+                    .registrationYear(client.get().getRegistrationYear())
+                    .sheetYear(client.get().getSheetYear())
+                    .profession("Registered Social Worker")
+                    .dateOfExpiry("31/12/" + LocalDate.now().getYear())
+                    .hasDifferentEmail(true)
+                    .messageId(message.getId())
+                    .build();
+
+            if(!attachmentsSet.isEmpty()){
+
+                attachmentsSet.forEach(it -> it.setCardProClient(clientObj));
+
+                clientObj.setImages(attachmentsSet);
+                clientObj.setHasNoAttachment(false);
+
+            }
+            else{
+
+                clientObj.setImages(new HashSet<>());
+                clientObj.setHasNoAttachment(true);
+            }
+
+            return clientObj;
+
+        } catch (IOException e) {
+            log.info("ERROR Client Email :: {} <-> {}", clientEmailAddress, e.toString());
+            return null;
+        }
 
     }
 
@@ -455,9 +374,6 @@ public class EmailProcessingService {
     public String extractClientEmailAddress(Message message){
         // Extract the ---------- Forwarded message --------- section
         var email = "";
-
-        log.info("Part size {}", message.getPayload().getParts().size());
-        log.info("Part data {}", message.getPayload().getParts());
 
         for(MessagePart emailMessagePart: message.getPayload().getParts()){
             if(emailMessagePart.getParts() != null){
@@ -485,13 +401,6 @@ public class EmailProcessingService {
                 }
             }
         }
-
-/*        for(MessagePart emailMessagePart: message.getPayload().getParts()){
-            if(emailMessagePart.getMimeType().equals("text/plain")){
-                var emailBody = new String(Base64.getUrlDecoder().decode(emailMessagePart.getBody().getData()), StandardCharsets.UTF_8);
-                email = emailBody.substring(emailBody.indexOf("<") + 1, emailBody.indexOf(">"));
-            }
-        }*/
 
         return email;
 
@@ -667,51 +576,6 @@ public class EmailProcessingService {
             log.error("ERROR Client not found createNewAttachmentFileName() :: {}", client.getEmail());
             return "";
         }
-    }
-
-    public Page<ImageDto> getImages(int pageNumber, int pageSize, String sortBy){
-        Pageable page = PageRequest.of(pageNumber, pageSize, Sort.by(sortBy));
-        return imagesRepository
-                .findAll(page)
-                .map(image -> {
-                    image.setAttachmentPath(encodeAttachmentFilePath(image.getAttachmentPath()));
-                    return mapper.imageToImageDto(image);
-                });
-    }
-
-    public ImageDto softDeleteImage(ImageDeleteDto imageDeleteDto){
-
-        var clientImagesSize = imagesRepository.countByCardProClient_IdAndDeletedFalse(imageDeleteDto.clientId());
-
-        if(clientImagesSize > 1){
-
-            var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(() -> new ResourceNotFoundException("Picture not found"));
-
-            image.setDeleted(true);
-            image = imagesRepository.save(image);
-
-            return mapper.imageToImageDto(image);
-
-        }
-        else{
-
-            log.error("Error: image size {} {}", clientImagesSize, imageDeleteDto.clientId());
-
-            throw new PictureCannotBeDeletedException("Cannot delete, Client only has one picture");
-        }
-
-    }
-
-    public ImageDto undoDeleteImage(ImageDeleteDto imageDeleteDto){
-
-        var image = imagesRepository.findById(imageDeleteDto.id()).orElseThrow(() -> new ResourceNotFoundException("Picture not found"));
-
-        image.setDeleted(false);
-
-        image = imagesRepository.save(image);
-
-        return mapper.imageToImageDto(image);
-
     }
 
 }

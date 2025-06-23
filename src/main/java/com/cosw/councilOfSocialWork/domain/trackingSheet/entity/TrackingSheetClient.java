@@ -1,6 +1,6 @@
 package com.cosw.councilOfSocialWork.domain.trackingSheet.entity;
 
-import com.cosw.councilOfSocialWork.util.BaseModel;
+import com.cosw.councilOfSocialWork.util.modelUtil.BaseModel;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

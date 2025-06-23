@@ -1,4 +1,4 @@
-package com.cosw.councilOfSocialWork.util;
+package com.cosw.councilOfSocialWork.util.modelUtil;
 
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
